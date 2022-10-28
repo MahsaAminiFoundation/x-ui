@@ -3,6 +3,8 @@ package controller
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strings"
+	"x-ui/logger"
 	"x-ui/web/session"
 )
 
@@ -10,7 +12,9 @@ type BaseController struct {
 }
 
 func (a *BaseController) checkLogin(c *gin.Context) {
-	if !session.IsLogin(c) {
+	logger.Info("checkLogin: ", c.FullPath())
+
+	if !strings.HasPrefix(c.FullPath(), "/xui/api") && !session.IsLogin(c) {
 		if isAjax(c) {
 			pureJsonMsg(c, false, "登录时效已过，请重新登录")
 		} else {
