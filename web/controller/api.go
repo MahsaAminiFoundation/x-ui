@@ -98,6 +98,7 @@ func (a *APIController) addUser(c *gin.Context) {
 	inbound.Port = 1000 + rand.Intn(4000)
 	inbound.Protocol = "vmess"
 	inbound.UserId = user.Id
+	inbound.Total = inbound.Total * 1024 * 1024 * 1024
 	inbound.Enable = true
 	inbound.Tag = fmt.Sprintf("inbound-%v", inbound.Port)
 	err = a.inboundService.AddInbound(inbound)
