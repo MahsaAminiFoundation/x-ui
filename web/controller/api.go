@@ -95,7 +95,7 @@ func (a *APIController) addUser(c *gin.Context) {
 	inbound.StreamSettings = "{\"network\":\"ws\",\"security\":\"none\",\"wsSettings\":{\"acceptProxyProtocol\":false,\"path\":\"/\",\"headers\":{}}}"
 	inbound.Sniffing = "{\"enabled\":true,\"destOverride\":[\"http\",\"tls\"]}"
 
-	inbound.Port = 1000 + rand.Intn(4000)
+	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
 	inbound.Protocol = "vmess"
 	inbound.UserId = user.Id
 	inbound.Total = inbound.Total * 1024 * 1024 * 1024
