@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"math/rand"
+	"net/http"
+	"strings"
 	"x-ui/database/model"
 	"x-ui/logger"
+	"x-ui/web/entity"
 	"x-ui/web/global"
 	"x-ui/web/service"
 )
@@ -91,15 +95,25 @@ func (a *APIController) addUser(c *gin.Context) {
 	inbound.StreamSettings = "{\"network\":\"ws\",\"security\":\"none\",\"wsSettings\":{\"acceptProxyProtocol\":false,\"path\":\"/\",\"headers\":{}}}"
 	inbound.Sniffing = "{\"enabled\":true,\"destOverride\":[\"http\",\"tls\"]}"
 
+	inbound.Port = 1000 + rand.Intn(4000)
+	inbound.Protocol = "vmess"
 	inbound.UserId = user.Id
 	inbound.Enable = true
 	inbound.Tag = fmt.Sprintf("inbound-%v", inbound.Port)
 	err = a.inboundService.AddInbound(inbound)
+	if err != nil {
+		jsonMsg(c, "添加", err)
+		return
+	}
+
+	logger.Info("host: ", c.Request.Host)
+	res1 := strings.Split(c.Request.Host, ":")
+	hostname := res1[0]
 
 	obj := VlessObject{
 		Version: "2",
 		Ps:      inbound.Remark,
-		Address: inbound.Listen,
+		Address: hostname,
 		Port:    inbound.Port,
 		UUID:    string(userUUID.String()),
 		AlterId: 0,
@@ -119,8 +133,12 @@ func (a *APIController) addUser(c *gin.Context) {
 	objStrBase64 := b64.StdEncoding.EncodeToString(objStr)
 	vmessURL := "vmess://" + objStrBase64
 
-	jsonMsg(c, vmessURL, err)
-	if err == nil {
-		a.xrayService.SetToNeedRestart()
+	m := entity.Msg{
+		Obj:     nil,
+		Success: true,
+		Msg:     vmessURL,
 	}
+	c.JSON(http.StatusOK, m)
+
+	a.xrayService.SetToNeedRestart()
 }
