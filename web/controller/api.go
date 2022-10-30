@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"x-ui/database/model"
 	"x-ui/logger"
@@ -33,6 +34,7 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	g = g.Group("/api")
 
 	g.GET("/list_users", a.listUsers)
+	g.GET("/num_users", a.numUsers)
 	g.POST("/add_user", a.addUser)
 }
 
@@ -47,6 +49,23 @@ func (a *APIController) startTask() {
 			}
 		}
 	})
+}
+
+func (a *APIController) numUsers(c *gin.Context) {
+	logger.Info("listing users")
+
+	inbounds, err := a.inboundService.GetAllInbounds()
+	if err != nil {
+		jsonMsg(c, "获取", err)
+		return
+	}
+
+	m := entity.Msg{
+		Obj:     nil,
+		Success: true,
+		Msg:     strconv.Itoa(len(inbounds)),
+	}
+	c.JSON(http.StatusOK, m)
 }
 
 func (a *APIController) listUsers(c *gin.Context) {
@@ -91,6 +110,7 @@ func (a *APIController) addUser(c *gin.Context) {
 	inbound.Settings = fmt.Sprintf(
 		"{\"clients\":[{\"id\":\"%s\",\"flow\":\"xtls-rprx-direct\"}],\"decryption\":\"none\",\"fallbacks\":[]}",
 		userUUID)
+	userUUIDstring := userUUID.String()
 
 	inbound.StreamSettings = "{\"network\":\"ws\",\"security\":\"none\",\"wsSettings\":{\"acceptProxyProtocol\":false,\"path\":\"/\",\"headers\":{}}}"
 	inbound.Sniffing = "{\"enabled\":true,\"destOverride\":[\"http\",\"tls\"]}"
@@ -102,12 +122,22 @@ func (a *APIController) addUser(c *gin.Context) {
 	inbound.Enable = true
 	inbound.Tag = fmt.Sprintf("inbound-%v", inbound.Port)
 	err = a.inboundService.AddInbound(inbound)
+
+	if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
+		inbound, err = a.inboundService.GetInboundWithRemark(inbound.Remark)
+
+		var settings map[string]any
+		json.Unmarshal([]byte(inbound.Settings), &settings)
+		clients := settings["clients"].([]any)
+		client := clients[0].(map[string]any)
+		userUUIDstring = client["id"].(string)
+	}
+
 	if err != nil {
 		jsonMsg(c, "添加", err)
 		return
 	}
 
-	logger.Info("host: ", c.Request.Host)
 	res1 := strings.Split(c.Request.Host, ":")
 	hostname := res1[0]
 
@@ -116,7 +146,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		Ps:      inbound.Remark,
 		Address: hostname,
 		Port:    inbound.Port,
-		UUID:    string(userUUID.String()),
+		UUID:    string(userUUIDstring),
 		AlterId: 0,
 		Net:     "ws",
 		Type:    "none",
