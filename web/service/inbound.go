@@ -75,7 +75,7 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) error {
 		return err
 	}
 	if exist {
-		return common.NewError("Remark already exists:", inbound.Remark)
+		return common.NewError("ALREADY_EXISTS")
 	}
 	db := database.GetDB()
 	return db.Save(inbound).Error
@@ -116,6 +116,16 @@ func (s *InboundService) AddInbounds(inbounds []*model.Inbound) error {
 func (s *InboundService) DelInbound(id int) error {
 	db := database.GetDB()
 	return db.Delete(model.Inbound{}, id).Error
+}
+
+func (s *InboundService) GetInboundWithRemark(remark string) (*model.Inbound, error) {
+	db := database.GetDB()
+	inbound := &model.Inbound{}
+	err := db.Model(model.Inbound{}).Where("remark = ?", remark).First(&inbound).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	return inbound, nil
 }
 
 func (s *InboundService) GetInbound(id int) (*model.Inbound, error) {
