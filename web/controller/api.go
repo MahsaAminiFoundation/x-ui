@@ -164,10 +164,12 @@ func (a *APIController) addUser(c *gin.Context) {
 	objStrBase64 := b64.StdEncoding.EncodeToString(objStr)
 	vmessURL := "vmess://" + objStrBase64
 
-	m := entity.Msg{
-		Obj:     nil,
-		Success: true,
-		Msg:     vmessURL,
+	m := entity.UserAddResp{
+		Obj:                nil,
+		Success:            true,
+		Msg:                vmessURL,
+		TotalBandwidth:     int(inbound.Total / 1000 / 1000),
+		RemainingBandwidth: int((inbound.Total - inbound.Up - inbound.Down) / 1000 / 1000),
 	}
 	c.JSON(http.StatusOK, m)
 
