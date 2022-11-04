@@ -16,6 +16,14 @@ type Msg struct {
 	Obj     interface{} `json:"obj"`
 }
 
+type UserAddResp struct {
+	Success            bool        `json:"success"`
+	Msg                string      `json:"msg"`
+	Obj                interface{} `json:"obj"`
+	TotalBandwidth     int         `json:"total"`
+	RemainingBandwidth int         `json:"remaining"`
+}
+
 type Pager struct {
 	Current  int         `json:"current"`
 	PageSize int         `json:"page_size"`
