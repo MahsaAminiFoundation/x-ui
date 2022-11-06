@@ -77,27 +77,16 @@ update_x-ui() {
     systemctl stop x-ui
     cd /usr/local/
 
-    if [ $# == 0 ]; then
-        last_version=$(curl -Ls "https://api.github.com/repos/roozbeh/x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-        if [[ ! -n "$last_version" ]]; then
-            echo -e "${red}检测 x-ui 版本失败，可能是超出 Github API 限制，请稍后再试，或手动指定 x-ui 版本安装${plain}"
-            exit 1
-        fi
-        echo -e "Detected x-ui; Latest version：${last_version}，starting insallation"
-        wget -N --no-check-certificate -O /usr/local/x-ui-linux-${arch}.tar.gz https://github.com/roozbeh/x-ui/releases/download/${last_version}/x-ui-linux-${arch}.tar.gz
-        if [[ $? -ne 0 ]]; then
-            echo -e "${red}Failed to download x-ui, please make sure your server can download Github files${plain}"
-            exit 1
-        fi
-    else
-        last_version=$1
-        url="https://github.com/roozbeh/x-ui/releases/download/${last_version}/x-ui-linux-${arch}.tar.gz"
-        echo -e "开始安装 x-ui v$1"
-        wget -N --no-check-certificate -O /usr/local/x-ui-linux-${arch}.tar.gz ${url}
-        if [[ $? -ne 0 ]]; then
-            echo -e "${red}Failed to download x-ui v$1, please make sure this version exists${plain}"
-            exit 1
-        fi
+    last_version=$(curl -Ls "https://api.github.com/repos/roozbeh/x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [[ ! -n "$last_version" ]]; then
+        echo -e "${red}检测 x-ui 版本失败，可能是超出 Github API 限制，请稍后再试，或手动指定 x-ui 版本安装${plain}"
+        exit 1
+    fi
+    echo -e "Detected x-ui; Latest version：${last_version}，starting insallation"
+    wget -N --no-check-certificate -O /usr/local/x-ui-linux-${arch}.tar.gz https://github.com/roozbeh/x-ui/releases/download/${last_version}/x-ui-linux-${arch}.tar.gz
+    if [[ $? -ne 0 ]]; then
+        echo -e "${red}Failed to download x-ui, please make sure your server can download Github files${plain}"
+        exit 1
     fi
 
     if [[ -e /usr/local/x-ui/ ]]; then
@@ -109,6 +98,5 @@ update_x-ui() {
     /usr/bin/x-ui restart
 }
 
-echo -e "${green}Start Installation${plain}"
-install_base
-install_x-ui $1
+echo -e "${green}Start the update${plain}"
+update_x-ui
