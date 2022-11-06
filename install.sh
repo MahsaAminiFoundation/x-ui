@@ -104,7 +104,7 @@ config_after_install() {
 
 config_cronjob_files() {
     echo -e "${yellow}Copying cronjob configs to automatically increase bandwidth weekly${plain}"
-    cp crontab/mahsa_amini_vpn /etc/cron.d/
+    cp mahsa_amini_vpn /etc/cron.d/
 }
 
 install_x-ui() {
