@@ -168,8 +168,8 @@ func (a *APIController) addUser(c *gin.Context) {
 		Obj:                nil,
 		Success:            true,
 		Msg:                vmessURL,
-		TotalBandwidth:     int(inbound.Total / 1024 / 1024),
-		RemainingBandwidth: int((inbound.Total - inbound.Up - inbound.Down) / 1024 / 1024),
+		TotalBandwidth:     int(inbound.Total / 1000 / 1000),
+		RemainingBandwidth: int((inbound.Total - inbound.Up - inbound.Down) / 1000 / 1000),
 	}
 	c.JSON(http.StatusOK, m)
 
