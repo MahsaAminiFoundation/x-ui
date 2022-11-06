@@ -1,5 +1,5 @@
 On dev server:
-$ go build -ldflags "-s -w" main.go 
+go build -ldflags "-s -w" main.go 
 
 
 On mac laptop:
@@ -11,6 +11,7 @@ mkdir x-ui
 cd x-ui
 scp root@<dev-server>:/home/ubuntu/x-ui/main x-ui
 cp ~/GoogleDrive/iPronto/MahsaAminiVPN/x-ui/x-ui.s* .
+cp ~/GoogleDrive/iPronto/MahsaAminiVPN/x-ui/crontab/mahsa_amini_vpn .
 mkdir bin
 cd bin
 cp ~/GoogleDrive/iPronto/MahsaAminiVPN/x-ui/bin/*.dat .
