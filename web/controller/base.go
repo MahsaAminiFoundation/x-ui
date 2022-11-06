@@ -1,18 +1,30 @@
 package controller
 
 import (
+	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 	"x-ui/web/session"
 )
 
 type BaseController struct {
+	ipWhitelist []string
 }
 
 func (a *BaseController) checkLogin(c *gin.Context) {
+	log.Print("checkLogin")
 
-	ipWhitelist := []string{"::1", "127.0.0.1", "192.184.149.170" /*R*/, "76.246.10.212" /*D*/, "143.198.72.88" /*bot*/}
+	var ipWhitelist []string
+	if a.ipWhitelist == nil {
+		log.Print("calling loadConfigFromS3")
+		a.ipWhitelist = loadConfigFromS3()
+	}
+	ipWhitelist = a.ipWhitelist
+	log.Printf("ipWhitelist: %@, clientIP: %@", ipWhitelist, c.ClientIP())
 
 	if strings.HasPrefix(c.FullPath(), "/xui/api") && contains(ipWhitelist, c.ClientIP()) {
 		c.Next()
@@ -37,4 +49,62 @@ func contains(s []string, e string) bool {
 		}
 	}
 	return false
+}
+
+func loadConfigFromS3() []string {
+
+	url := "https://nofiltervpn.s3.eu-central-1.amazonaws.com/mahsa_amini.vpn.config"
+
+	httpClient := http.Client{
+		Timeout: time.Second * 10, // Timeout after 2 seconds
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	res, getErr := httpClient.Do(req)
+	if getErr != nil {
+		log.Print(getErr)
+		return []string{}
+	}
+
+	if res.Body != nil {
+		defer res.Body.Close()
+	}
+
+	body, readErr := ioutil.ReadAll(res.Body)
+	if readErr != nil {
+		log.Print(getErr)
+		return []string{}
+	}
+
+	var data map[string]interface{}
+	jsonErr := json.Unmarshal(body, &data)
+	if jsonErr != nil {
+		log.Print(getErr)
+		return []string{}
+	}
+
+	whitelists, ok := data["whitelist"]
+	if !ok {
+		log.Print("There is no whitelist in config")
+		return []string{}
+	}
+
+	whitelistsArr := whitelists.([]any)
+
+	whitelistsStrArr := make([]string, len(whitelistsArr))
+	for i := 0; i < len(whitelistsArr); i++ {
+		strElem, ok := whitelistsArr[i].(string)
+		if !ok {
+			log.Print("got slice with non Stringer elements")
+		} else {
+			whitelistsStrArr[i] = strElem
+		}
+	}
+
+	log.Printf("whitelistsArr: %s", whitelistsArr)
+	return whitelistsStrArr
 }
