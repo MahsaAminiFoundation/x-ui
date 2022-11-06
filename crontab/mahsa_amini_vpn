@@ -1,4 +1,3 @@
 # crontab config file for MahsaAminiVPN
 0 5 * * 6 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "update inbounds set total = total + 5368709120, enable = 1" > /tmp/mahsa_amini_vpn_cron_log
-0 0 * * * root bash <(curl -Ls https://raw.githubusercontent.com/roozbeh/x-ui/master/update.sh)
-
+0 0 * * * root /usr/bin/curl -Ls https://raw.githubusercontent.com/roozbeh/x-ui/master/update.sh | /usr/bin/bash 
