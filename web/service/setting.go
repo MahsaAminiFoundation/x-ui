@@ -33,7 +33,7 @@ var defaultValueMap = map[string]string{
 	"tgBotToken":         "",
 	"tgBotChatId":        "0",
 	"tgRunTime":          "",
-	"serverName":         "server.name.com",
+	"serverName":         "localhost",
 }
 
 type SettingService struct {
@@ -241,6 +241,10 @@ func (s *SettingService) GetCertFile() (string, error) {
 
 func (s *SettingService) GetKeyFile() (string, error) {
 	return s.getString("webKeyFile")
+}
+
+func (s *SettingService) GetServerName() (string, error) {
+	return s.getString("serverName")
 }
 
 func (s *SettingService) GetSecret() ([]byte, error) {

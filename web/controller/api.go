@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/sethvargo/go-password/password"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -21,6 +22,7 @@ type APIController struct {
 	inboundService service.InboundService
 	xrayService    service.XrayService
 	userService    service.UserService
+	settingService service.SettingService
 }
 
 func NewAPIController(g *gin.RouterGroup) *APIController {
@@ -52,8 +54,6 @@ func (a *APIController) startTask() {
 }
 
 func (a *APIController) numUsers(c *gin.Context) {
-	logger.Info("listing users")
-
 	inbounds, err := a.inboundService.GetAllInbounds()
 	if err != nil {
 		jsonMsg(c, "获取", err)
@@ -69,8 +69,6 @@ func (a *APIController) numUsers(c *gin.Context) {
 }
 
 func (a *APIController) listUsers(c *gin.Context) {
-	logger.Info("listing users")
-
 	inbounds, err := a.inboundService.GetAllInbounds()
 	if err != nil {
 		jsonMsg(c, "获取", err)
@@ -106,17 +104,24 @@ func (a *APIController) addUser(c *gin.Context) {
 		return
 	}
 
-	userUUID := uuid.New()
-	inbound.Settings = fmt.Sprintf(
-		"{\"clients\":[{\"id\":\"%s\",\"flow\":\"xtls-rprx-direct\"}],\"decryption\":\"none\",\"fallbacks\":[]}",
-		userUUID)
-	userUUIDstring := userUUID.String()
+	var password string
+	var userUUIDstring string
+	requestedProtocol := inbound.Protocol
+	if requestedProtocol == "vmess" {
+		userUUIDstring = a.setVmessSettingsForInbound(inbound)
 
-	inbound.StreamSettings = "{\"network\":\"ws\",\"security\":\"none\",\"wsSettings\":{\"acceptProxyProtocol\":false,\"path\":\"/\",\"headers\":{}}}"
-	inbound.Sniffing = "{\"enabled\":true,\"destOverride\":[\"http\",\"tls\"]}"
+	} else if requestedProtocol == "trojan" {
+		logger.Info("Setting protocol as trojan")
+		password, err = a.setTrojanSettingsForInbound(inbound)
+		if err != nil {
+			jsonMsg(c, "添加", err)
+			return
+		}
+	}
 
 	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
-	inbound.Protocol = "vmess"
+	var url string
+
 	inbound.UserId = user.Id
 	inbound.Total = inbound.Total * 1024 * 1024 * 1024
 	inbound.Enable = true
@@ -124,23 +129,164 @@ func (a *APIController) addUser(c *gin.Context) {
 	err = a.inboundService.AddInbound(inbound)
 
 	if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
-		inbound, err = a.inboundService.GetInboundWithRemark(inbound.Remark)
+		dbInbound, err := a.inboundService.GetInboundWithRemark(inbound.Remark)
+		if err != nil {
+			jsonMsg(c, "添加", err)
+			return
+		}
 
-		var settings map[string]any
-		json.Unmarshal([]byte(inbound.Settings), &settings)
-		clients := settings["clients"].([]any)
-		client := clients[0].(map[string]any)
-		userUUIDstring = client["id"].(string)
+		if requestedProtocol != dbInbound.Protocol {
+			a.inboundService.DelInbound(dbInbound.Id)
+			err = a.inboundService.AddInbound(inbound)
+			if err != nil {
+				jsonMsg(c, "添加", err)
+				return
+			}
+		} else {
+			//Inbound exists with the right protocol
+			inbound = dbInbound
+			var settings map[string]any
+			json.Unmarshal([]byte(inbound.Settings), &settings)
+
+			clients := settings["clients"].([]any)
+			client := clients[0].(map[string]any)
+			if inbound.Protocol == "vmess" {
+				userUUIDstring = client["id"].(string)
+			} else if inbound.Protocol == "trojan" {
+				password = client["password"].(string)
+			}
+
+		}
 	}
 
+	hostname := a.getHostname(c)
+
+	if inbound.Protocol == "vmess" {
+		url, err = a.getVmessURL(inbound, userUUIDstring, hostname)
+		if err != nil {
+			jsonMsg(c, "添加", err)
+			return
+		}
+
+	} else if inbound.Protocol == "trojan" {
+		url = a.getTrojanURL(inbound, password, hostname)
+	}
+
+	m := entity.UserAddResp{
+		Obj:                nil,
+		Success:            true,
+		Msg:                url,
+		TotalBandwidth:     int(inbound.Total / 1000 / 1000),
+		RemainingBandwidth: int((inbound.Total - inbound.Up - inbound.Down) / 1000 / 1000),
+	}
+	c.JSON(http.StatusOK, m)
+
+	a.xrayService.SetToNeedRestart()
+}
+
+func (a *APIController) getHostname(c *gin.Context) string {
+	hostname, err := a.settingService.GetServerName()
+	if (err != nil) || (hostname == "localhost") {
+		res1 := strings.Split(c.Request.Host, ":")
+		hostname = res1[0]
+	}
+
+	return hostname
+}
+
+func (a *APIController) setVmessSettingsForInbound(inbound *model.Inbound) string {
+	userUUID := uuid.New()
+	inbound.Settings = fmt.Sprintf(
+		`{
+            "clients":[{
+                "id":"%s",
+                "flow":"xtls-rprx-direct"
+            }],
+            "decryption":"none",
+            "fallbacks":[]
+        }`,
+		userUUID)
+	userUUIDstring := userUUID.String()
+
+	inbound.StreamSettings = `{
+        "network":"ws",
+        "security":"none",
+        "wsSettings":{
+            "acceptProxyProtocol":false,
+            "path":"/",
+            "headers":{}
+        }
+    }`
+
+	inbound.Sniffing = `{
+        "enabled":true,
+        "destOverride":[
+            "http",
+            "tls"
+        ]
+    }`
+
+	return userUUIDstring
+}
+
+func (a *APIController) setTrojanSettingsForInbound(inbound *model.Inbound) (string, error) {
+	password, err := password.Generate(10, 4, 0, false, true)
 	if err != nil {
-		jsonMsg(c, "添加", err)
-		return
+		return "", err
+	}
+	inbound.Settings = fmt.Sprintf(`{
+                          "clients": [
+                            {
+                              "password": "%s",
+                              "flow": "xtls-rprx-direct"
+                            }
+                          ],
+                          "fallbacks": []
+                        }`, password)
+
+	certificateFile, err := a.settingService.GetCertFile()
+	if err != nil {
+		return "", err
 	}
 
-	res1 := strings.Split(c.Request.Host, ":")
-	hostname := res1[0]
+	keyFile, err := a.settingService.GetKeyFile()
+	if err != nil {
+		return "", err
+	}
 
+	inbound.StreamSettings = fmt.Sprintf(`{
+      "network": "tcp",
+      "security": "xtls",
+      "tlsSettings": {
+        "serverName": "",
+        "certificates": [
+          {
+            "certificateFile": "%s",
+            "keyFile": "%s"
+          }
+        ],
+        "alpn": []
+      },
+      "tcpSettings": {
+        "acceptProxyProtocol": false,
+        "header": {
+          "type": "none"
+        }
+      }
+    }`, certificateFile, keyFile)
+
+	inbound.Sniffing = `{
+        "enabled":true,
+        "destOverride":[
+            "http",
+            "tls"
+        ]
+    }`
+
+	return password, nil
+}
+
+func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring string, hostname string) (string, error) {
 	obj := VlessObject{
 		Version: "2",
 		Ps:      inbound.Remark,
@@ -157,21 +303,16 @@ func (a *APIController) addUser(c *gin.Context) {
 
 	objStr, err := json.Marshal(obj)
 	if err != nil {
-		jsonMsg(c, "添加", err)
-		return
+		return "", err
 	}
 
 	objStrBase64 := b64.StdEncoding.EncodeToString(objStr)
 	vmessURL := "vmess://" + objStrBase64
 
-	m := entity.UserAddResp{
-		Obj:                nil,
-		Success:            true,
-		Msg:                vmessURL,
-		TotalBandwidth:     int(inbound.Total / 1000 / 1000),
-		RemainingBandwidth: int((inbound.Total - inbound.Up - inbound.Down) / 1000 / 1000),
-	}
-	c.JSON(http.StatusOK, m)
+	return vmessURL, nil
+}
 
-	a.xrayService.SetToNeedRestart()
+func (a *APIController) getTrojanURL(inbound *model.Inbound, password string, hostname string) string {
+	return fmt.Sprintf("trojan://%s@%s:%d#%s",
+		password, hostname, inbound.Port, inbound.Remark)
 }
