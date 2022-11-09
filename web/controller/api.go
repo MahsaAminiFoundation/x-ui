@@ -38,6 +38,8 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	g.GET("/list_users", a.listUsers)
 	g.GET("/num_users", a.numUsers)
 	g.POST("/add_user", a.addUser)
+	g.POST("/remaining_quota", a.remainingQuota)
+
 }
 
 func (a *APIController) startTask() {
@@ -89,6 +91,25 @@ type VlessObject struct {
 	Host    string `json:"host"`
 	Path    string `json:"path"`
 	TLS     string `json:"tls"`
+}
+
+func (a *APIController) remainingQuota(c *gin.Context) {
+	inbound := &model.Inbound{}
+	err := c.ShouldBind(inbound)
+	if err != nil {
+		jsonMsg(c, "添加", err)
+		return
+	}
+
+	dbInbound, err := a.inboundService.GetInboundWithRemark(inbound.Remark)
+
+	m := entity.UserAddResp{
+		Obj:                nil,
+		Success:            true,
+		TotalBandwidth:     int(dbInbound.Total / 1000 / 1000),
+		RemainingBandwidth: int((dbInbound.Total - dbInbound.Up - dbInbound.Down) / 1000 / 1000),
+	}
+	c.JSON(http.StatusOK, m)
 }
 
 func (a *APIController) addUser(c *gin.Context) {
