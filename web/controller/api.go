@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/sethvargo/go-password/password"
+	"gorm.io/gorm"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -102,6 +103,10 @@ func (a *APIController) remainingQuota(c *gin.Context) {
 	}
 
 	dbInbound, err := a.inboundService.GetInboundWithRemark(inbound.Remark)
+	if err != nil || dbInbound.Id == 0 {
+		jsonMsg(c, "获取", gorm.ErrRecordNotFound)
+		return
+	}
 
 	m := entity.UserAddResp{
 		Obj:                nil,
