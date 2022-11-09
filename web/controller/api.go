@@ -257,7 +257,7 @@ func (a *APIController) setTrojanSettingsForInbound(inbound *model.Inbound) (str
 	inbound.StreamSettings = fmt.Sprintf(`{
       "network": "tcp",
       "security": "xtls",
-      "tlsSettings": {
+      "xtlsSettings": {
         "serverName": "",
         "certificates": [
           {
