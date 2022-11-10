@@ -143,6 +143,14 @@ func (a *APIController) addUser(c *gin.Context) {
 			jsonMsg(c, "添加", err)
 			return
 		}
+
+	} else if requestedProtocol == "vless" {
+		logger.Info("Setting protocol as vless")
+		userUUIDstring = a.setVlessSettingsForInbound(inbound)
+		if err != nil {
+			jsonMsg(c, "添加", err)
+			return
+		}
 	}
 
 	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
@@ -161,27 +169,17 @@ func (a *APIController) addUser(c *gin.Context) {
 			return
 		}
 
-		if requestedProtocol != dbInbound.Protocol {
-			a.inboundService.DelInbound(dbInbound.Id)
-			err = a.inboundService.AddInbound(inbound)
-			if err != nil {
-				jsonMsg(c, "添加", err)
-				return
-			}
-		} else {
-			//Inbound exists with the right protocol
-			inbound = dbInbound
-			var settings map[string]any
-			json.Unmarshal([]byte(inbound.Settings), &settings)
+		//Inbound exists with the right protocol
+		inbound = dbInbound
+		var settings map[string]any
+		json.Unmarshal([]byte(inbound.Settings), &settings)
 
-			clients := settings["clients"].([]any)
-			client := clients[0].(map[string]any)
-			if inbound.Protocol == "vmess" {
-				userUUIDstring = client["id"].(string)
-			} else if inbound.Protocol == "trojan" {
-				password = client["password"].(string)
-			}
-
+		clients := settings["clients"].([]any)
+		client := clients[0].(map[string]any)
+		if inbound.Protocol == "vmess" {
+			userUUIDstring = client["id"].(string)
+		} else if inbound.Protocol == "trojan" {
+			password = client["password"].(string)
 		}
 	}
 
@@ -196,6 +194,10 @@ func (a *APIController) addUser(c *gin.Context) {
 
 	} else if inbound.Protocol == "trojan" {
 		url = a.getTrojanURL(inbound, password, hostname)
+
+	} else if inbound.Protocol == "vless" {
+		url = a.getVlessURL(inbound, userUUIDstring, hostname)
+
 	}
 
 	m := entity.UserAddResp{
@@ -312,6 +314,43 @@ func (a *APIController) setTrojanSettingsForInbound(inbound *model.Inbound) (str
 	return password, nil
 }
 
+func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) string {
+	userUUID := uuid.New()
+	inbound.Settings = fmt.Sprintf(
+		`{
+            "clients": [
+            {
+              "id": "%s",
+              "flow": "xtls-rprx-direct"
+            }
+          ],
+          "decryption": "none",
+          "fallbacks": []
+        }`,
+		userUUID)
+	userUUIDstring := userUUID.String()
+
+	inbound.StreamSettings = `{
+        "network":"ws",
+        "security":"none",
+        "wsSettings":{
+            "acceptProxyProtocol":false,
+            "path":"/",
+            "headers":{}
+        }
+    }`
+
+	inbound.Sniffing = `{
+        "enabled":true,
+        "destOverride":[
+            "http",
+            "tls"
+        ]
+    }`
+
+	return userUUIDstring
+}
+
 func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring string, hostname string) (string, error) {
 	obj := VlessObject{
 		Version: "2",
@@ -341,4 +380,10 @@ func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring strin
 func (a *APIController) getTrojanURL(inbound *model.Inbound, password string, hostname string) string {
 	return fmt.Sprintf("trojan://%s@%s:%d#%s",
 		password, hostname, inbound.Port, inbound.Remark)
+}
+
+func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
+	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=none&path=%s",
+		userUUIDstring, hostname, inbound.Port, inbound.Remark)
+
 }
