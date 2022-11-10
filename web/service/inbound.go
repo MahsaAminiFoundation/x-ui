@@ -48,12 +48,9 @@ func (s *InboundService) checkPortExist(port int, ignoreId int) (bool, error) {
 	return count > 0, nil
 }
 
-func (s *InboundService) checkRemarkExist(remark string, ignoreId int) (bool, error) {
+func (s *InboundService) checkRemarkProtocolExist(remark string, protocol string) (bool, error) {
 	db := database.GetDB()
-	db = db.Model(model.Inbound{}).Where("remark = ?", remark)
-	if ignoreId > 0 {
-		db = db.Where("id != ?", ignoreId)
-	}
+	db = db.Model(model.Inbound{}).Where("remark = ? and protocol = ?", remark, protocol)
 	var count int64
 	err := db.Count(&count).Error
 	if err != nil {
@@ -70,7 +67,7 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) error {
 	if exist {
 		return common.NewError("端口已存在:", inbound.Port)
 	}
-	exist, err = s.checkRemarkExist(inbound.Remark, 0)
+	exist, err = s.checkRemarkProtocolExist(inbound.Remark, string(inbound.Protocol))
 	if err != nil {
 		return err
 	}
