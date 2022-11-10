@@ -24,6 +24,17 @@ type UserAddResp struct {
 	RemainingBandwidth int         `json:"remaining"`
 }
 
+type ProtocolBandWidth struct {
+	Protocol           string `json:"protocol"`
+	TotalBandwidth     int    `json:"total"`
+	RemainingBandwidth int    `json:"remaining"`
+}
+type QuotaResp struct {
+	Success   bool                `json:"success"`
+	Msg       string              `json:"msg"`
+	Protocols []ProtocolBandWidth `json:"protocols"`
+}
+
 type Pager struct {
 	Current  int         `json:"current"`
 	PageSize int         `json:"page_size"`
