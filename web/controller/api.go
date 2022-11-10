@@ -143,6 +143,7 @@ func (a *APIController) addUser(c *gin.Context) {
 			jsonMsg(c, "添加", err)
 			return
 		}
+		/* TODO: Add vless */
 	}
 
 	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
@@ -161,27 +162,17 @@ func (a *APIController) addUser(c *gin.Context) {
 			return
 		}
 
-		if requestedProtocol != dbInbound.Protocol {
-			a.inboundService.DelInbound(dbInbound.Id)
-			err = a.inboundService.AddInbound(inbound)
-			if err != nil {
-				jsonMsg(c, "添加", err)
-				return
-			}
-		} else {
-			//Inbound exists with the right protocol
-			inbound = dbInbound
-			var settings map[string]any
-			json.Unmarshal([]byte(inbound.Settings), &settings)
+		//Inbound exists with the right protocol
+		inbound = dbInbound
+		var settings map[string]any
+		json.Unmarshal([]byte(inbound.Settings), &settings)
 
-			clients := settings["clients"].([]any)
-			client := clients[0].(map[string]any)
-			if inbound.Protocol == "vmess" {
-				userUUIDstring = client["id"].(string)
-			} else if inbound.Protocol == "trojan" {
-				password = client["password"].(string)
-			}
-
+		clients := settings["clients"].([]any)
+		client := clients[0].(map[string]any)
+		if inbound.Protocol == "vmess" {
+			userUUIDstring = client["id"].(string)
+		} else if inbound.Protocol == "trojan" {
+			password = client["password"].(string)
 		}
 	}
 
