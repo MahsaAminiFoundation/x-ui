@@ -115,10 +115,20 @@ func (s *InboundService) DelInbound(id int) error {
 	return db.Delete(model.Inbound{}, id).Error
 }
 
-func (s *InboundService) GetInboundWithRemark(remark string) (*model.Inbound, error) {
+func (s *InboundService) GetInboundsWithRemark(remark string) ([]*model.Inbound, error) {
+	db := database.GetDB()
+	var inbounds []*model.Inbound
+	err := db.Model(model.Inbound{}).Where("remark = ?", remark).Find(&inbounds).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	return inbounds, nil
+}
+
+func (s *InboundService) GetInboundWithRemarkProtocol(remark string, protocol string) (*model.Inbound, error) {
 	db := database.GetDB()
 	inbound := &model.Inbound{}
-	err := db.Model(model.Inbound{}).Where("remark = ?", remark).First(&inbound).Error
+	err := db.Model(model.Inbound{}).Where("remark = ? and protocol = ?", remark, protocol).First(&inbound).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
