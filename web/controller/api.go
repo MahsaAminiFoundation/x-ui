@@ -102,17 +102,22 @@ func (a *APIController) remainingQuota(c *gin.Context) {
 		return
 	}
 
-	dbInbound, err := a.inboundService.GetInboundWithRemark(inbound.Remark)
-	if err != nil || dbInbound.Id == 0 {
+	inbounds, err := a.inboundService.GetInboundsWithRemark(inbound.Remark)
+	if err != nil || len(inbounds) == 0 {
 		jsonMsg(c, "获取", gorm.ErrRecordNotFound)
 		return
 	}
 
-	m := entity.UserAddResp{
-		Obj:                nil,
-		Success:            true,
-		TotalBandwidth:     int(dbInbound.Total / 1000 / 1000),
-		RemainingBandwidth: int((dbInbound.Total - dbInbound.Up - dbInbound.Down) / 1000 / 1000),
+	protocols := make([]entity.ProtocolBandWidth, len(inbounds))
+	for index, _ := range protocols {
+		protocols[index].Protocol = string(inbounds[index].Protocol)
+		protocols[index].TotalBandwidth = int(inbounds[index].Total / 1000 / 1000)
+		protocols[index].RemainingBandwidth = int((inbounds[index].Total - inbounds[index].Up - inbounds[index].Down) / 1000 / 1000)
+	}
+
+	m := entity.QuotaResp{
+		Success:   true,
+		Protocols: protocols,
 	}
 	c.JSON(http.StatusOK, m)
 }
@@ -163,7 +168,7 @@ func (a *APIController) addUser(c *gin.Context) {
 	err = a.inboundService.AddInbound(inbound)
 
 	if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
-		dbInbound, err := a.inboundService.GetInboundWithRemark(inbound.Remark)
+		dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(inbound.Remark, string(inbound.Protocol))
 		if err != nil {
 			jsonMsg(c, "添加", err)
 			return
