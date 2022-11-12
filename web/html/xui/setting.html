@@ -71,6 +71,13 @@
                                     title="Server hostname" 
                                     desc="This should match the IP address of the host, and the certificate public/key files"
                                     v-model="allSetting.serverName"></setting-list-item>
+                                    
+                                <setting-list-item 
+                                    type="text" 
+                                    title="Server IP" 
+                                    desc="This should match the IP address of the host"
+                                    v-model="allSetting.serverIP"></setting-list-item>
+                                    
                             </a-list>
                         </a-tab-pane>
                         <a-tab-pane key="2" tab="用户设置">
