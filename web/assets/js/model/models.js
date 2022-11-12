@@ -169,6 +169,7 @@ class AllSetting {
         this.tgRunTime = "";
         this.xrayTemplateConfig = "";
         this.serverName = "";
+        this.serverIP = "";
  
         this.timeLocation = "Asia/Shanghai";
 
