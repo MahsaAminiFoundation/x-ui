@@ -181,7 +181,7 @@ func (a *APIController) addUser(c *gin.Context) {
 
 		clients := settings["clients"].([]any)
 		client := clients[0].(map[string]any)
-		if inbound.Protocol == "vmess" {
+		if inbound.Protocol == "vmess" || inbound.Protocol == "vless" {
 			userUUIDstring = client["id"].(string)
 		} else if inbound.Protocol == "trojan" {
 			password = client["password"].(string)
