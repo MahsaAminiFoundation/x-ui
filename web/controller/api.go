@@ -188,7 +188,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		}
 	}
 
-	hostname := a.getHostname(c)
+	hostname := a.getHostname(c, string(inbound.Protocol))
 
 	if inbound.Protocol == "vmess" {
 		url, err = a.getVmessURL(inbound, userUUIDstring, hostname)
@@ -217,9 +217,17 @@ func (a *APIController) addUser(c *gin.Context) {
 	a.xrayService.SetToNeedRestart()
 }
 
-func (a *APIController) getHostname(c *gin.Context) string {
-	hostname, err := a.settingService.GetServerName()
-	if (err != nil) || (hostname == "localhost") {
+func (a *APIController) getHostname(c *gin.Context, protocol string) string {
+	var hostname string
+	var err error
+
+	if protocol == "trojan" {
+		hostname, err = a.settingService.GetServerName()
+	} else {
+		hostname, err = a.settingService.GetServerIP()
+	}
+
+	if (err != nil) || (hostname == "localhost" || hostname == "127.0.0.1") {
 		res1 := strings.Split(c.Request.Host, ":")
 		hostname = res1[0]
 	}

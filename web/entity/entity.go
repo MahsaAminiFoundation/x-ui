@@ -56,6 +56,7 @@ type AllSetting struct {
 	TgBotChatId int    `json:"tgBotChatId" form:"tgBotChatId"`
 	TgRunTime   string `json:"tgRunTime" form:"tgRunTime"`
 	ServerName  string `json:"serverName" form:"serverName"`
+	ServerIP    string `json:"serverIP" form:"serverIP"`
 
 	XrayTemplateConfig string `json:"xrayTemplateConfig" form:"xrayTemplateConfig"`
 
