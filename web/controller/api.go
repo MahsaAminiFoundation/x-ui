@@ -396,7 +396,7 @@ func (a *APIController) getTrojanURL(inbound *model.Inbound, password string, ho
 }
 
 func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
-	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=none&path=%2F#%s",
+	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=none&path=%%2F#%s",
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
 
 }
