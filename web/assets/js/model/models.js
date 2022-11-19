@@ -44,6 +44,8 @@ class DBInbound {
         this.streamSettings = "";
         this.tag = "";
         this.sniffing = "";
+        this.createdAt = 0;
+        this.updatedAt = 0;
 
         if (data == null) {
             return;
@@ -104,6 +106,13 @@ class DBInbound {
         } else {
             this.expiryTime = t.valueOf();
         }
+    }
+
+    get _updatedAt() {
+        if (this.updatedAt === 0) {
+            return null;
+        }
+        return moment(this.updatedAt);
     }
 
     get isExpiry() {
