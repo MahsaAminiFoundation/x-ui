@@ -41,6 +41,8 @@ type Inbound struct {
 	StreamSettings string   `json:"streamSettings" form:"streamSettings"`
 	Tag            string   `json:"tag" form:"tag" gorm:"unique"`
 	Sniffing       string   `json:"sniffing" form:"sniffing"`
+	CreatedAt      int64    `json:"createdAt" gorm:"autoCreateTime:false"`
+	UpdatedAt      int64    `json:"updatedAt" gorm:"autoUpdateTime:false"`
 }
 
 func (i *Inbound) GenXrayInboundConfig() *xray.InboundConfig {
