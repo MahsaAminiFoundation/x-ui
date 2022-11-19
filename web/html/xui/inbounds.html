@@ -27,15 +27,15 @@
                     <a-card hoverable style="margin-bottom: 20px;">
                         <a-row>
                             <a-col :xs="24" :sm="24" :lg="12">
-                                总上传 / 下载：
+                                Total upload / download：
                                 <a-tag color="green">[[ sizeFormat(total.up) ]] / [[ sizeFormat(total.down) ]]</a-tag>
                             </a-col>
                             <a-col :xs="24" :sm="24" :lg="12">
-                                总用量：
+                                Total usage：
                                 <a-tag color="green">[[ sizeFormat(total.up + total.down) ]]</a-tag>
                             </a-col>
                             <a-col :xs="24" :sm="24" :lg="12">
-                                入站数量：
+                                # of inbounds：
                                 <a-tag color="green">[[ dbInbounds.length ]]</a-tag>
                             </a-col>
                         </a-row>
@@ -55,7 +55,7 @@
                                  @change="() => getDBInbounds()">
                             <template slot="action" slot-scope="text, dbInbound">
                                 <a-dropdown :trigger="['click']">
-                                    <a @click="e => e.preventDefault()">操作</a>
+                                    <a @click="e => e.preventDefault()">Act</a>
                                     <a-menu slot="overlay" @click="a => clickAction(a, dbInbound)">
                                         <a-menu-item v-if="dbInbound.hasLink()" key="qrcode">
                                             <a-icon type="qrcode"></a-icon>二维码
@@ -76,6 +76,7 @@
                             </template>
                             <template slot="protocol" slot-scope="text, dbInbound">
                                 <a-tag color="blue">[[ dbInbound.protocol ]]</a-tag>
+                                <a-tag color="blue">[[ DateUtil.formatSeconds(dbInbound.updatedAt) ]]</a-tag>
                             </template>
                             <template slot="traffic" slot-scope="text, dbInbound">
                                 <a-tag color="blue">[[ sizeFormat(dbInbound.up) ]] / [[ sizeFormat(dbInbound.down) ]]</a-tag>
@@ -83,10 +84,10 @@
                                     <a-tag v-if="dbInbound.up + dbInbound.down < dbInbound.total" color="cyan">[[ sizeFormat(dbInbound.total) ]]</a-tag>
                                     <a-tag v-else color="red">[[ sizeFormat(dbInbound.total) ]]</a-tag>
                                 </template>
-                                <a-tag v-else color="green">无限制</a-tag>
+                                <a-tag v-else color="green">unlimited</a-tag>
                             </template>
                             <template slot="settings" slot-scope="text, dbInbound">
-                                <a-button type="link" @click="showInfo(dbInbound)">查看</a-button>
+                                <a-button type="link" @click="showInfo(dbInbound)">Settings</a-button>
                             </template>
                             <template slot="stream" slot-scope="text, dbInbound, index">
                                 <template v-if="dbInbound.isVMess || dbInbound.isVLess || dbInbound.isTrojan || dbInbound.isSS">
@@ -121,12 +122,12 @@
 <script>
 
     const columns = [{
-        title: "操作",
+        title: "Act",
         align: 'center',
         width: 30,
         scopedSlots: { customRender: 'action' },
     }, {
-        title: "启用",
+        title: "Enable",
         align: 'center',
         width: 40,
         scopedSlots: { customRender: 'enable' },
@@ -136,37 +137,37 @@
         dataIndex: "id",
         width: 30,
     }, {
-        title: "备注",
+        title: "Remark",
         align: 'center',
         width: 100,
         dataIndex: "remark",
     }, {
-        title: "协议",
+        title: "Protocol",
         align: 'center',
         width: 60,
         scopedSlots: { customRender: 'protocol' },
     }, {
-        title: "端口",
+        title: "Port",
         align: 'center',
         dataIndex: "port",
         width: 60,
     }, {
-        title: "流量↑|↓",
+        title: "Traffic ↑|↓",
         align: 'center',
         width: 150,
         scopedSlots: { customRender: 'traffic' },
     }, {
-        title: "详细信息",
+        title: "Details",
         align: 'center',
         width: 40,
         scopedSlots: { customRender: 'settings' },
     }, {
-        title: "传输配置",
+        title: "Transport",
         align: 'center',
         width: 60,
         scopedSlots: { customRender: 'stream' },
     }, {
-        title: "到期时间",
+        title: "Expire Date",
         align: 'center',
         width: 80,
         scopedSlots: { customRender: 'expiryTime' },
