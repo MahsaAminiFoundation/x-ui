@@ -138,6 +138,10 @@ class DateUtil {
         return moment(millis).format('YYYY-M-D H:m:s')
     }
 
+    static formatSeconds(seconds) {
+        return moment(seconds*1000).format('YYYY-M-D H:m:s')
+    }
+
     static firstDayOfMonth() {
         const date = new Date();
         date.setDate(1);
