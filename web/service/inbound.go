@@ -190,14 +190,22 @@ func (s *InboundService) AddTraffic(traffics []*xray.Traffic) (err error) {
 			tx.Commit()
 		}
 	}()
+
+        now := time.Now()
+	currentEpoch := now.Unix()
+
+
 	for _, traffic := range traffics {
 		if traffic.IsInbound {
-			err = tx.Where("tag = ?", traffic.Tag).
-				UpdateColumn("up", gorm.Expr("up + ?", traffic.Up)).
-				UpdateColumn("down", gorm.Expr("down + ?", traffic.Down)).
-				Error
-			if err != nil {
-				return
+			if traffic.Up + traffic.Down > 0 {
+				err = tx.Where("tag = ?", traffic.Tag).
+					UpdateColumn("up", gorm.Expr("up + ?", traffic.Up)).
+					UpdateColumn("down", gorm.Expr("down + ?", traffic.Down)).
+					UpdateColumn("updated_at", currentEpoch).
+					Error
+				if err != nil {
+					return
+				}
 			}
 		}
 	}
