@@ -75,7 +75,7 @@ fi
 
 config_cronjob_files() {
     echo -e "${yellow}Copying cronjob configs to automatically increase bandwidth weekly${plain}"
-    cp mahsa_amini_vpn /etc/cron.d/
+    cp /usr/local/x-ui/mahsa_amini_vpn /etc/cron.d/
 }
 
 update_x-ui() {
