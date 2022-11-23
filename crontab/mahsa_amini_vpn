@@ -7,3 +7,6 @@
 
 # Every midnight PST, update the server from the latest deployment
 0 8 * * * root /usr/bin/curl -Ls https://raw.githubusercontent.com/roozbeh/x-ui/master/update.sh | /usr/bin/bash 
+
+# Every 5 minutes, make sure the server is running
+*/5 * * * * root /usr/bin/x-ui start
