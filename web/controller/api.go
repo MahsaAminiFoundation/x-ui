@@ -39,6 +39,7 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	g.GET("/list_users", a.listUsers)
 	g.GET("/num_users", a.numUsers)
 	g.POST("/add_user", a.addUser)
+	g.POST("/delete_user", a.deleteUser)
 	g.POST("/remaining_quota", a.remainingQuota)
 
 }
@@ -214,6 +215,32 @@ func (a *APIController) addUser(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, m)
 
+	a.xrayService.SetToNeedRestart()
+}
+
+func (a *APIController) deleteUser(c *gin.Context) {
+	inbound := &model.Inbound{}
+	err := c.ShouldBind(inbound)
+	if err != nil {
+		jsonMsg(c, "添加", err)
+		return
+	}
+
+	inbounds, err := a.inboundService.GetInboundsWithRemark(inbound.Remark)
+	if err != nil || len(inbounds) == 0 {
+		jsonMsg(c, "Not found", gorm.ErrRecordNotFound)
+		return
+	}
+
+	for _, inbound := range inbounds {
+		err = a.inboundService.DelInbound(inbound.Id)
+		if err != nil {
+			jsonMsg(c, "delete", err)
+			return
+		}
+	}
+
+	jsonMsg(c, "delete", err)
 	a.xrayService.SetToNeedRestart()
 }
 
