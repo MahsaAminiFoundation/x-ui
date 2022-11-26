@@ -120,7 +120,7 @@ config_after_install() {
     /usr/local/x-ui/x-ui setting -serverIP ${server_ip}
 
     echo -e "${yellow}Panel public key setting will be ${cert_file} completed${plain}"
-    /usr/local/x-ui/x-ui setting -webCertFile ${server_ip}
+    /usr/local/x-ui/x-ui setting -webCertFile ${cert_file}
     echo -e "${yellow}Panel private key setting will be ${key_file} completed${plain}"
     /usr/local/x-ui/x-ui setting -webKeyFile ${key_file}
 }
