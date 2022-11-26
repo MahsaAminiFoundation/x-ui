@@ -146,7 +146,7 @@ install_x-ui() {
     chmod +x /usr/bin/x-ui
     config_after_install
     config_cronjob_files
-    config_ssl
+    config_ssl $1 $2
     #echo -e "如果是全新安装，默认网页端口为 ${green}54321${plain}，用户名和密码默认都是 ${green}admin${plain}"
     #echo -e "请自行确保此端口没有被其他程序占用，${yellow}并且确保 54321 端口已放行${plain}"
     #    echo -e "若想将 54321 修改为其它端口，输入 x-ui 命令进行修改，同样也要确保你修改的端口也是放行的"
@@ -177,4 +177,4 @@ install_x-ui() {
 
 echo -e "${green}开始安装${plain}"
 install_base
-install_x-ui $1 
+install_x-ui $1 $2
