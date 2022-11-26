@@ -100,6 +100,8 @@ config_after_install() {
     config_port=8080
     domain_name=$3
     server_ip=$4
+    cert_file="/etc/letsencrypt/live/${domain_name}/fullchain.pem"
+    key_file="/etc/letsencrypt/live/${domain_name}/privkey.pem"
         
     /usr/sbin/ufw disable 
     echo -e "${yellow}Your username will be:${config_account}${plain}"
@@ -111,10 +113,16 @@ config_after_install() {
     /usr/local/x-ui/x-ui setting -port ${config_port}
     echo -e "${yellow}Panel port setting is completed${plain}"
     /usr/local/x-ui/x-ui setting -port ${config_port}
+
     echo -e "${yellow}Panel serverName setting will be ${domain_name} completed${plain}"
     /usr/local/x-ui/x-ui setting -serverName ${domain_name}
     echo -e "${yellow}Panel serverIP setting will be ${server_ip} completed${plain}"
     /usr/local/x-ui/x-ui setting -serverIP ${server_ip}
+
+    echo -e "${yellow}Panel public key setting will be ${cert_file} completed${plain}"
+    /usr/local/x-ui/x-ui setting -webCertFile ${server_ip}
+    echo -e "${yellow}Panel private key setting will be ${key_file} completed${plain}"
+    /usr/local/x-ui/x-ui setting -webKeyFile ${key_file}
 }
 
 install_x-ui() {
