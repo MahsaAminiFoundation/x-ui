@@ -234,6 +234,37 @@ func updateServerNameSetting(serverName string, serverIP string) {
 	}
 }
 
+func updateServerKeySettings(webCertFile string, webKeyFile string) {
+	err := database.InitDB(config.GetDBPath())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	settingService := service.SettingService{}
+
+	if webCertFile != "" {
+		err := settingService.SetCertFile(webCertFile)
+		if err != nil {
+			fmt.Println(err)
+			return
+		} else {
+			logger.Infof("SetCertFile certFile[%s] success", webCertFile)
+		}
+	}
+
+	if webKeyFile != "" {
+		err := settingService.SetKeyFile(webKeyFile)
+		if err != nil {
+			fmt.Println(err)
+			return
+		} else {
+			logger.Infof("SetKeyFile keyFile[%s] success", webKeyFile)
+		}
+	}
+
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		runWebServer()
@@ -261,6 +292,9 @@ func main() {
 	var show bool
 	var serverName string
 	var serverIP string
+	var webCertFile string
+	var webKeyFile string
+
 	settingCmd.BoolVar(&reset, "reset", false, "reset all settings")
 	settingCmd.BoolVar(&show, "show", false, "show current settings")
 	settingCmd.IntVar(&port, "port", 0, "set panel port")
@@ -272,6 +306,8 @@ func main() {
 	settingCmd.BoolVar(&enabletgbot, "enabletgbot", false, "enable telegram bot notify")
 	settingCmd.StringVar(&serverName, "serverName", "", "Server name - DNS setting")
 	settingCmd.StringVar(&serverIP, "serverIP", "", "Server IP address")
+	settingCmd.StringVar(&webCertFile, "webCertFile", "", "Server public keys")
+	settingCmd.StringVar(&webKeyFile, "webKeyFile", "", "Server private key")
 
 	oldUsage := flag.Usage
 	flag.Usage = func() {
@@ -326,6 +362,9 @@ func main() {
 		}
 		if (serverName != "") || (serverIP != "") {
 			updateServerNameSetting(serverName, serverIP)
+		}
+		if (webCertFile != "") || (webKeyFile != "") {
+			updateServerKeySettings(webCertFile, webKeyFile)
 		}
 	default:
 		fmt.Println("except 'run' or 'v2-ui' or 'setting' subcommands")
