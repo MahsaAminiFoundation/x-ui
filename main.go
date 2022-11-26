@@ -204,6 +204,36 @@ func updateSetting(port int, username string, password string) {
 	}
 }
 
+func updateServerNameSetting(serverName string, serverIP string) {
+	err := database.InitDB(config.GetDBPath())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	settingService := service.SettingService{}
+
+	if serverName != "" {
+		err := settingService.SetServerName(serverName)
+		if err != nil {
+			fmt.Println(err)
+			return
+		} else {
+			logger.Infof("SetServerName serverName[%s] success", serverName)
+		}
+	}
+
+	if serverIP != "" {
+		err := settingService.SetServerIP(serverIP)
+		if err != nil {
+			fmt.Println(err)
+			return
+		} else {
+			logger.Infof("SetServerIP serverIP[%s] success", serverIP)
+		}
+	}
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		runWebServer()
@@ -229,6 +259,8 @@ func main() {
 	var tgbotRuntime string
 	var reset bool
 	var show bool
+	var serverName string
+	var serverIP string
 	settingCmd.BoolVar(&reset, "reset", false, "reset all settings")
 	settingCmd.BoolVar(&show, "show", false, "show current settings")
 	settingCmd.IntVar(&port, "port", 0, "set panel port")
@@ -238,6 +270,8 @@ func main() {
 	settingCmd.StringVar(&tgbotRuntime, "tgbotRuntime", "", "set telegrame bot cron time")
 	settingCmd.IntVar(&tgbotchatid, "tgbotchatid", 0, "set telegrame bot chat id")
 	settingCmd.BoolVar(&enabletgbot, "enabletgbot", false, "enable telegram bot notify")
+	settingCmd.StringVar(&serverName, "serverName", "", "Server name - DNS setting")
+	settingCmd.StringVar(&serverIP, "serverIP", "", "Server IP address")
 
 	oldUsage := flag.Usage
 	flag.Usage = func() {
@@ -289,6 +323,9 @@ func main() {
 		}
 		if (tgbottoken != "") || (tgbotchatid != 0) || (tgbotRuntime != "") {
 			updateTgbotSetting(tgbottoken, tgbotchatid, tgbotRuntime)
+		}
+		if (serverName != "") || (serverIP != "") {
+			updateServerNameSetting(serverName, serverIP)
 		}
 	default:
 		fmt.Println("except 'run' or 'v2-ui' or 'setting' subcommands")

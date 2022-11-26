@@ -248,8 +248,16 @@ func (s *SettingService) GetServerName() (string, error) {
 	return s.getString("serverName")
 }
 
+func (s *SettingService) SetServerName(name string) error {
+	return s.setString("serverName", name)
+}
+
 func (s *SettingService) GetServerIP() (string, error) {
 	return s.getString("serverIP")
+}
+
+func (s *SettingService) SetServerIP(ip string) error {
+	return s.setString("serverIP", ip)
 }
 
 func (s *SettingService) GetSecret() ([]byte, error) {
