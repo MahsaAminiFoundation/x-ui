@@ -82,28 +82,6 @@ install_base() {
     fi
 }
 
-#This function will be called when user installed x-ui out of sercurity
-config_after_install() {
-    echo -e "${yellow}For security reasons, it is necessary to modify the port and account password after the installation/update is completed. The firewall is also going to be turned off.${plain}"
-    /usr/sbin/ufw disable 
-    read -p "Please confirm?[y/n]": config_confirm
-    if [[ x"${config_confirm}" == x"y" || x"${config_confirm}" == x"Y" ]]; then
-        read -p "Please enter the username you want to use:" config_account
-        echo -e "${yellow}Your username will be:${config_account}${plain}"
-        read -p "Please enter the password you want to use:" config_password
-        echo -e "${yellow}Password will be:${config_password}${plain}"
-        read -p "Please enter the port number:" config_port
-        echo -e "${yellow}Your panel access port number will be:${config_port}${plain}"
-        echo -e "${yellow}Settings confirmed.${plain}"
-        /usr/local/x-ui/x-ui setting -username ${config_account} -password ${config_password}
-        echo -e "${yellow}Username/Password setting completed${plain}"
-        /usr/local/x-ui/x-ui setting -port ${config_port}
-        echo -e "${yellow}Panel port setting is completed${plain}"
-    else
-        echo -e "${red}Cancelled, all setting items are default settings, please modify in time${plain}"
-    fi
-}
-
 config_cronjob_files() {
     echo -e "${yellow}Copying cronjob configs to automatically increase bandwidth weekly${plain}"
     cp mahsa_amini_vpn /etc/cron.d/
@@ -111,9 +89,32 @@ config_cronjob_files() {
 
 config_ssl() {
     domain_name=$1
-    server_ip=$2
         
     certbot certonly --standalone --preferred-challenges http --agree-tos --email mahsa@amini.com -d ${domain_name}
+}
+
+#This function will be called when user installed x-ui out of sercurity
+config_after_install() {
+    config_account=$1
+    config_password=$2
+    config_port=8080
+    domain_name=$3
+    server_ip=$4
+        
+    /usr/sbin/ufw disable 
+    echo -e "${yellow}Your username will be:${config_account}${plain}"
+    echo -e "${yellow}Password will be:${config_password}${plain}"
+    echo -e "${yellow}Your panel access port number will be:${config_port}${plain}"
+    echo -e "${yellow}Settings confirmed.${plain}"
+    /usr/local/x-ui/x-ui setting -username ${config_account} -password ${config_password}
+    echo -e "${yellow}Username/Password setting completed${plain}"
+    /usr/local/x-ui/x-ui setting -port ${config_port}
+    echo -e "${yellow}Panel port setting is completed${plain}"
+    /usr/local/x-ui/x-ui setting -port ${config_port}
+    echo -e "${yellow}Panel serverName setting will be ${domain_name} completed${plain}"
+    /usr/local/x-ui/x-ui setting -serverName ${domain_name}
+    echo -e "${yellow}Panel serverIP setting will be ${server_ip} completed${plain}"
+    /usr/local/x-ui/x-ui setting -serverIP ${server_ip}
 }
 
 install_x-ui() {
@@ -144,9 +145,9 @@ install_x-ui() {
     wget --no-check-certificate -O /usr/bin/x-ui https://raw.githubusercontent.com/roozbeh/x-ui/main/x-ui.sh
     chmod +x /usr/local/x-ui/x-ui.sh
     chmod +x /usr/bin/x-ui
-    config_after_install
+    config_ssl $3
+    config_after_install $1 $2 $3 $4
     config_cronjob_files
-    config_ssl $1 $2
     #echo -e "如果是全新安装，默认网页端口为 ${green}54321${plain}，用户名和密码默认都是 ${green}admin${plain}"
     #echo -e "请自行确保此端口没有被其他程序占用，${yellow}并且确保 54321 端口已放行${plain}"
     #    echo -e "若想将 54321 修改为其它端口，输入 x-ui 命令进行修改，同样也要确保你修改的端口也是放行的"
@@ -177,4 +178,8 @@ install_x-ui() {
 
 echo -e "${green}开始安装${plain}"
 install_base
-install_x-ui $1 $2
+# $1 -> username
+# $2 -> password
+# $3 -> domain name
+# $4 -> server ip
+install_x-ui $1 $2 $3 $4
