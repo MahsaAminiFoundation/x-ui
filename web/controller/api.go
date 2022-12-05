@@ -41,6 +41,7 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	g.POST("/add_user", a.addUser)
 	g.POST("/delete_user", a.deleteUser)
 	g.POST("/remaining_quota", a.remainingQuota)
+	g.POST("/add_quota", a.addQuota)
 
 }
 
@@ -242,6 +243,45 @@ func (a *APIController) deleteUser(c *gin.Context) {
 
 	jsonMsg(c, "delete", err)
 	a.xrayService.SetToNeedRestart()
+}
+
+func (a *APIController) addQuota(c *gin.Context) {
+	inputInbound := &model.Inbound{}
+	err := c.ShouldBind(inputInbound)
+	if err != nil {
+		jsonMsg(c, "添加", err)
+		return
+	}
+
+	addSize := inputInbound.Total * 1024 * 1024 * 1024
+	inbound, err := a.inboundService.GetInboundWithRemarkProtocol(inputInbound.Remark, string(inputInbound.Protocol))
+	if err != nil {
+		jsonMsg(c, "获取", gorm.ErrRecordNotFound)
+		return
+	}
+
+	inbound.Total += addSize
+	a.inboundService.UpdateInbound(inbound)
+
+	inbounds, err := a.inboundService.GetInboundsWithRemark(inbound.Remark)
+	if err != nil || len(inbounds) == 0 {
+		jsonMsg(c, "获取", gorm.ErrRecordNotFound)
+		return
+	}
+
+	protocols := make([]entity.ProtocolBandWidth, len(inbounds))
+	for index, _ := range protocols {
+		protocols[index].Protocol = string(inbounds[index].Protocol)
+		protocols[index].TotalBandwidth = int(inbounds[index].Total / 1000 / 1000)
+		protocols[index].RemainingBandwidth = int((inbounds[index].Total - inbounds[index].Up - inbounds[index].Down) / 1000 / 1000)
+	}
+
+	m := entity.QuotaResp{
+		Success:   true,
+		Protocols: protocols,
+	}
+
+	c.JSON(http.StatusOK, m)
 }
 
 func (a *APIController) getHostname(c *gin.Context, protocol string) string {
