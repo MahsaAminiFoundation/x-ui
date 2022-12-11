@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sethvargo/go-password/password"
 	"gorm.io/gorm"
+	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -260,7 +261,10 @@ func (a *APIController) addQuota(c *gin.Context) {
 		return
 	}
 
+	log.Printf("current total: %@, newTotal: %@, enable: %@", inbound.Total, inbound.Total+addSize, inbound.Enable)
+
 	inbound.Total += addSize
+	inbound.Enable = true
 	a.inboundService.UpdateInbound(inbound)
 
 	inbounds, err := a.inboundService.GetInboundsWithRemark(inbound.Remark)
