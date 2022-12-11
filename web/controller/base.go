@@ -19,12 +19,13 @@ func (a *BaseController) checkLogin(c *gin.Context) {
 	log.Print("checkLogin")
 
 	var ipWhitelist []string
-	if a.ipWhitelist == nil {
+	if a.ipWhitelist == nil || len(a.ipWhitelist) == 0 {
 		log.Print("calling loadConfigFromS3")
 		a.ipWhitelist = loadConfigFromS3()
+
+		log.Printf("ipWhitelist: %@, clientIP: %@", ipWhitelist)
 	}
 	ipWhitelist = a.ipWhitelist
-	log.Printf("ipWhitelist: %@, clientIP: %@", ipWhitelist, c.ClientIP())
 
 	if strings.HasPrefix(c.FullPath(), "/xui/api") && contains(ipWhitelist, c.ClientIP()) {
 		c.Next()
