@@ -3,7 +3,7 @@
 0 5 * * 6 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "update inbounds set total = up + down + 5368709120, enable = 1" > /tmp/mahsa_amini_vpn_cron_log
 
 # Every Sunday 9pm PST, remove users without any activity
-0 5 * * 0 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "delete from inbounds where up + down = 0;" > /tmp/mahsa_amini_vpn_cron_log
+0 5 * * 0 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "delete from inbounds where (strftime('%s', 'now') - updated_at) > 7 * 86400;" > /tmp/mahsa_amini_vpn_cron_log
 
 # Every midnight PST, update the server from the latest deployment
 0 8 * * * root /usr/bin/curl -Ls https://raw.githubusercontent.com/roozbeh/x-ui/master/update.sh | /usr/bin/bash 
