@@ -86,12 +86,12 @@ config_telegraf_agent() {
     #install telegraf
     wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
     source /etc/os-release
-    echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
-    sudo apt-get update && sudo apt-get install telegraf -y
+    #echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+    sudo apt-get update && sudo apt-get install telegraf
 
     # make changes to unit file /etc/systemd/system/multi-user.target.wants/telegraf.service
     systemctl stop telegraf
-    cat > /etc/systemd/system/multi-user.target.wants/telegraf.service << EOF
+    cat > /lib/systemd/system/telegraf.service << EOF
     [Unit]
     Description=Telegraf
     Documentation=https://github.com/influxdata/telegraf
