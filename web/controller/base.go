@@ -16,8 +16,6 @@ type BaseController struct {
 }
 
 func (a *BaseController) checkLogin(c *gin.Context) {
-	log.Print("checkLogin")
-
 	var ipWhitelist []string
 	if a.ipWhitelist == nil || len(a.ipWhitelist) == 0 {
 		log.Print("calling loadConfigFromS3")
