@@ -154,7 +154,7 @@ func (a *APIController) addUser(c *gin.Context) {
 
 	} else if requestedProtocol == "vless" {
 		logger.Info("Setting protocol as vless")
-		userUUIDstring = a.setVlessSettingsForInbound(inbound)
+		userUUIDstring, err = a.setVlessSettingsForInbound(inbound)
 		if err != nil {
 			jsonMsg(c, "添加", err)
 			return
@@ -399,7 +399,7 @@ func (a *APIController) setTrojanSettingsForInbound(inbound *model.Inbound) (str
 	return password, nil
 }
 
-func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) string {
+func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) (string, error) {
 	userUUID := uuid.New()
 	inbound.Settings = fmt.Sprintf(
 		`{
@@ -415,15 +415,36 @@ func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) strin
 		userUUID)
 	userUUIDstring := userUUID.String()
 
-	inbound.StreamSettings = `{
-        "network":"ws",
-        "security":"none",
-        "wsSettings":{
-            "acceptProxyProtocol":false,
-            "path":"/",
-            "headers":{}
+	certificateFile, err := a.settingService.GetCertFile()
+	if err != nil {
+		return "", err
+	}
+
+	keyFile, err := a.settingService.GetKeyFile()
+	if err != nil {
+		return "", err
+	}
+
+	inbound.StreamSettings = fmt.Sprintf(`{
+      "network": "tcp",
+      "security": "xtls",
+      "xtlsSettings": {
+        "serverName": "",
+        "certificates": [
+          {
+              "certificateFile": "%s",
+              "keyFile": "%s"
+          }
+        ],
+        "alpn": []
+      },
+      "tcpSettings": {
+        "acceptProxyProtocol": false,
+        "header": {
+          "type": "none"
         }
-    }`
+      }
+    }`, certificateFile, keyFile)
 
 	inbound.Sniffing = `{
         "enabled":true,
@@ -433,7 +454,7 @@ func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) strin
         ]
     }`
 
-	return userUUIDstring
+	return userUUIDstring, nil
 }
 
 func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring string, hostname string) (string, error) {
@@ -468,7 +489,6 @@ func (a *APIController) getTrojanURL(inbound *model.Inbound, password string, ho
 }
 
 func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
-	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=none&path=%%2F#%s",
+	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=xtls&flow=xtls-rprx-direct#%s",
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
-
 }
