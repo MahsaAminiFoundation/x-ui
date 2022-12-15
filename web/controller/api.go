@@ -444,10 +444,10 @@ func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring strin
 		Port:    inbound.Port,
 		UUID:    string(userUUIDstring),
 		AlterId: 0,
-		Net:     "ws",
+		Net:     "tcp",
 		Type:    "none",
 		Host:    "",
-		Path:    "/",
+		Path:    "",
 		TLS:     "none",
 	}
 
