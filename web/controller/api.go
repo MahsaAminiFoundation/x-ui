@@ -292,10 +292,10 @@ func (a *APIController) getHostname(c *gin.Context, protocol string) string {
 	var hostname string
 	var err error
 
-	if protocol == "trojan" {
-		hostname, err = a.settingService.GetServerName()
-	} else {
+	if protocol == "vmess" {
 		hostname, err = a.settingService.GetServerIP()
+	} else {
+		hostname, err = a.settingService.GetServerName()
 	}
 
 	if (err != nil) || (hostname == "localhost" || hostname == "127.0.0.1") {
