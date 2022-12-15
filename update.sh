@@ -78,6 +78,50 @@ config_cronjob_files() {
     cp /usr/local/x-ui/mahsa_amini_vpn /etc/cron.d/
 }
 
+config_telegraf_agent() {
+    # change the host name to the subdomain
+    subdomain=$(sqlite3 /etc/x-ui/x-ui.db "select value from settings where key='serverName'"| cut -d '.' -f 1)
+    [[ ! -z "$subdomain" ]] && hostname $subdomain 
+
+    #install telegraf
+    wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
+    source /etc/os-release
+    echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+    sudo apt-get update && sudo apt-get install telegraf -y
+
+    # make changes to unit file /etc/systemd/system/multi-user.target.wants/telegraf.service
+    systemctl stop telegraf
+    cat > /etc/systemd/system/multi-user.target.wants/telegraf.service << EOF
+    [Unit]
+    Description=Telegraf
+    Documentation=https://github.com/influxdata/telegraf
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    Type=notify
+    EnvironmentFile=-/etc/default/telegraf
+    Environment=export INFLUX_TOKEN=EWfFixfgSOBFDtekh6JK9HxHcdLp-2KukLWi4AKxTDy5PWdKDuPoBfgmj89o3gcZGwva5Y2TPNx1yf98atVSig==
+    User=root
+    ExecStart=/usr/bin/telegraf --config https://admin.mahsaaminivpn.com:8086/api/v2/telegrafs/0a702635bf68d000 
+    ExecReload=/bin/kill -HUP $MAINPID
+    Restart=on-failure
+    RestartForceExitStatus=SIGPIPE
+    KillMode=control-group
+
+    [Install]
+    WantedBy=multi-user.target
+EOF
+
+    # reload unit files
+    systemctl daemon-reload
+
+    # enable and start service
+    systemctl enable telegraf
+    systemctl restart telegraf
+
+}
+
 update_x-ui() {
     systemctl stop x-ui
     cd /usr/local/
@@ -102,6 +146,7 @@ update_x-ui() {
     rm x-ui-linux-${arch}.tar.gz -f
     /usr/bin/x-ui restart
     config_cronjob_files
+    config_telegraf_agent
 }
 
 echo -e "${green}Start the update${plain}"
