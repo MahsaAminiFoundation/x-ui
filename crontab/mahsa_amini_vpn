@@ -10,3 +10,6 @@
 
 # Every 5 minutes, make sure the server is running
 */5 * * * * root /usr/bin/x-ui start
+
+# Every night 15 minutes after midnight PST, restart telegraf service to get possible updates in config
+15 8 * * * root systemctl restart telegraf
