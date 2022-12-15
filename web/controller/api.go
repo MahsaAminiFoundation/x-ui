@@ -321,13 +321,14 @@ func (a *APIController) setVmessSettingsForInbound(inbound *model.Inbound) strin
 	userUUIDstring := userUUID.String()
 
 	inbound.StreamSettings = `{
-        "network":"ws",
-        "security":"none",
-        "wsSettings":{
-            "acceptProxyProtocol":false,
-            "path":"/",
-            "headers":{}
+      "network": "tcp",
+      "security": "none",
+      "tcpSettings": {
+        "acceptProxyProtocol": false,
+        "header": {
+          "type": "none"
         }
+      }
     }`
 
 	inbound.Sniffing = `{
