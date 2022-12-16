@@ -59,6 +59,17 @@ func (s *InboundService) checkRemarkProtocolExist(remark string, protocol string
 	return count > 0, nil
 }
 
+func (s *InboundService) UpdateStreamSettings(remark string, protocol string, streamSettings string) (int64, error) {
+	db := database.GetDB()
+	result := db.Model(model.Inbound{}).
+		Where("remark = ? and protocol = ?", remark, protocol).
+		Update("stream_settings", streamSettings)
+
+	err := result.Error
+	count := result.RowsAffected
+	return count, err
+}
+
 func (s *InboundService) AddInbound(inbound *model.Inbound) error {
 	exist, err := s.checkPortExist(inbound.Port, 0)
 	if err != nil {
@@ -191,13 +202,12 @@ func (s *InboundService) AddTraffic(traffics []*xray.Traffic) (err error) {
 		}
 	}()
 
-        now := time.Now()
+	now := time.Now()
 	currentEpoch := now.Unix()
-
 
 	for _, traffic := range traffics {
 		if traffic.IsInbound {
-			if traffic.Up + traffic.Down > 0 {
+			if traffic.Up+traffic.Down > 0 {
 				err = tx.Where("tag = ?", traffic.Tag).
 					UpdateColumn("up", gorm.Expr("up + ?", traffic.Up)).
 					UpdateColumn("down", gorm.Expr("down + ?", traffic.Down)).
