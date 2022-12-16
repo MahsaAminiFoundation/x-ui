@@ -123,7 +123,6 @@ EOF
 }
 
 update_x-ui() {
-    systemctl stop x-ui
     cd /usr/local/
 
     last_version=$(curl -Ls "https://api.github.com/repos/roozbeh/x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
@@ -137,6 +136,8 @@ update_x-ui() {
         echo -e "${red}Failed to download x-ui, please make sure your server can download Github files${plain}"
         exit 1
     fi
+
+    systemctl stop x-ui
 
     if [[ -e /usr/local/x-ui/ ]]; then
         rm /usr/local/x-ui/ -rf
