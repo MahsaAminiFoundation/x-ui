@@ -171,6 +171,13 @@ func (a *APIController) addUser(c *gin.Context) {
 	err = a.inboundService.AddInbound(inbound)
 
 	if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
+		// To make sure the assumed settings for the protocol is in-sync with the XRAY/DB
+		rowsCount, err := a.inboundService.UpdateStreamSettings(inbound.Remark, string(inbound.Protocol), inbound.StreamSettings)
+		if err != nil || rowsCount != 1 {
+			jsonMsg(c, "添加", err)
+			return
+		}
+
 		dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(inbound.Remark, string(inbound.Protocol))
 		if err != nil {
 			jsonMsg(c, "添加", err)
