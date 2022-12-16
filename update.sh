@@ -103,7 +103,7 @@ config_telegraf_agent() {
     EnvironmentFile=-/etc/default/telegraf
     Environment=export INFLUX_TOKEN=mDd0auCzTawQGXA4uZpWpnM2vXQ0YbQuw9rPg5b1XHLdnMJyLSazxxtnunDqwjqm6ORpkzyRxMUht8YvIfSXQw==
     User=root
-    ExecStart=telegraf --config https://monitoring.mahsaaminivpn.com:8086/api/v2/telegrafs/0a7254ace6f63000
+    ExecStart=/usr/bin/telegraf --config https://monitoring.mahsaaminivpn.com:8086/api/v2/telegrafs/0a7254ace6f63000
     ExecReload=/bin/kill -HUP $MAINPID
     Restart=on-failure
     RestartForceExitStatus=SIGPIPE
