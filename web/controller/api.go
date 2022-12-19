@@ -331,11 +331,24 @@ func (a *APIController) setVmessSettingsForInbound(inbound *model.Inbound) strin
       "network": "tcp",
       "security": "none",
       "tcpSettings": {
-        "acceptProxyProtocol": false,
-        "header": {
-          "type": "none"
-        }
-      }
+         "acceptProxyProtocol": false,
+         "header": {
+           "type": "http",
+           "request": {
+             "method": "GET",
+             "path": [
+               "/"
+             ],
+             "headers": {}
+           },
+           "response": {
+             "version": "1.1",
+             "status": "200",
+             "reason": "OK",
+             "headers": {}
+           }
+         }
+       }
     }`
 
 	inbound.Sniffing = `{
