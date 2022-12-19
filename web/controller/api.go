@@ -486,9 +486,9 @@ func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring strin
 		UUID:    string(userUUIDstring),
 		AlterId: 0,
 		Net:     "tcp",
-		Type:    "none",
+		Type:    "http",
 		Host:    "",
-		Path:    "",
+		Path:    "/",
 		TLS:     "none",
 	}
 
