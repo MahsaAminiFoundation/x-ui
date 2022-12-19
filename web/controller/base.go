@@ -52,7 +52,7 @@ func contains(s []string, e string) bool {
 
 func loadConfigFromS3() []string {
 
-	url := "https://nofiltervpn.s3.eu-central-1.amazonaws.com/mahsa_amini.vpn.config"
+	url := "https://nofiltervpn.s3.amazonaws.com/mahsa_amini.vpn.config"
 
 	httpClient := http.Client{
 		Timeout: time.Second * 10, // Timeout after 2 seconds
