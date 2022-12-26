@@ -227,6 +227,9 @@ func (a *APIController) addUser(c *gin.Context) {
 		} else if inbound.Protocol == "trojan" {
 			password = client["password"].(string)
 		}
+	} else if err != nil {
+		jsonMsg(c, "Could not add user", err)
+		return
 	}
 
 	hostname := a.getHostname(c, string(requestedProtocol))
@@ -343,7 +346,7 @@ func (a *APIController) getHostname(c *gin.Context, protocol string) string {
 	if protocol == "vmess" {
 		hostname, err = a.settingService.GetServerIP()
 	} else {
-                // vless, trojan, vmess_cdn, vless_cdn
+		// vless, trojan, vmess_cdn, vless_cdn
 		hostname, err = a.settingService.GetServerName()
 	}
 
