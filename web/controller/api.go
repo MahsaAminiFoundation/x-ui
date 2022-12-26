@@ -180,6 +180,7 @@ func (a *APIController) addUser(c *gin.Context) {
 	} else if requestedProtocol == "vmess_cdn" {
 		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound)
 		inbound.Port = cloudflare_http_ports[rand.Intn(len(cloudflare_http_ports))]
+		inbound.Protocol = "vmess"
 
 	} else if requestedProtocol == "vless_cdn" {
 		userUUIDstring, err = a.setVlessCDNSettingsForInbound(inbound)
@@ -189,6 +190,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		}
 
 		inbound.Port = cloudflare_https_ports[rand.Intn(len(cloudflare_https_ports))]
+		inbound.Protocol = "vless"
 	}
 
 	var url string
@@ -227,29 +229,29 @@ func (a *APIController) addUser(c *gin.Context) {
 		}
 	}
 
-	hostname := a.getHostname(c, string(inbound.Protocol))
+	hostname := a.getHostname(c, string(requestedProtocol))
 
-	if inbound.Protocol == "vmess" {
+	if requestedProtocol == "vmess" {
 		url, err = a.getVmessURL(inbound, userUUIDstring, hostname)
 		if err != nil {
 			jsonMsg(c, "添加", err)
 			return
 		}
 
-	} else if inbound.Protocol == "trojan" {
+	} else if requestedProtocol == "trojan" {
 		url = a.getTrojanURL(inbound, password, hostname)
 
-	} else if inbound.Protocol == "vless" {
+	} else if requestedProtocol == "vless" {
 		url = a.getVlessURL(inbound, userUUIDstring, hostname)
 
-	} else if inbound.Protocol == "vmess_cdn" {
+	} else if requestedProtocol == "vmess_cdn" {
 		url, err = a.getVmessCDNURL(inbound, userUUIDstring, hostname)
 		if err != nil {
 			jsonMsg(c, "添加", err)
 			return
 		}
 
-	} else if inbound.Protocol == "vless_cdn" {
+	} else if requestedProtocol == "vless_cdn" {
 		url = a.getVlessCDNURL(inbound, userUUIDstring, hostname)
 
 	}
