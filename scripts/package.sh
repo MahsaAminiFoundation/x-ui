@@ -6,6 +6,8 @@ On mac laptop:
 cd /Users/roozbeh/GoogleDrive/iPronto/MahsaAminiVPN/x-ui-binary
 scp ubuntu@140.82.48.210:/home/ubuntu/x-ui/main x-ui/x-ui
 cp ~/GoogleDrive/iPronto/MahsaAminiVPN/x-ui/crontab/mahsa_amini_vpn x-ui/
+cp ~/GoogleDrive/iPronto/MahsaAminiVPN/x-ui/bin/geo*dat x-ui/bin/
+cp ~/GoogleDrive/iPronto/MahsaAminiVPN/x-ui/bin/xray-linux-amd64 x-ui/bin/
 tar czvf x-ui-linux-amd64.tar.gz x-ui/
 
 mkdir x-ui
