@@ -71,7 +71,7 @@ func (s *InboundService) UpdateStreamSettings(remark string, protocol string, st
 }
 
 func (s *InboundService) AddInbound(inbound *model.Inbound) error {
-	exist, err = s.checkRemarkProtocolExist(inbound.Remark, string(inbound.Protocol))
+	exist, err := s.checkRemarkProtocolExist(inbound.Remark, string(inbound.Protocol))
 	if err != nil {
 		return err
 	}
