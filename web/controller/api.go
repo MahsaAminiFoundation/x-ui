@@ -141,6 +141,24 @@ func (a *APIController) addUser(c *gin.Context) {
 	var password string
 	var userUUIDstring string
 	requestedProtocol := inbound.Protocol
+	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
+	cloudflare_http_ports := []int{
+		80,
+		8080,
+		8880,
+		2052,
+		2082,
+		2086,
+		2095,
+	}
+	cloudflare_https_ports := []int{
+		443,
+		2053,
+		2083,
+		2087,
+		2096,
+		8443,
+	}
 	if requestedProtocol == "vmess" {
 		userUUIDstring = a.setVmessSettingsForInbound(inbound)
 
@@ -159,9 +177,20 @@ func (a *APIController) addUser(c *gin.Context) {
 			jsonMsg(c, "添加", err)
 			return
 		}
+	} else if requestedProtocol == "vmess_cdn" {
+		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound)
+		inbound.Port = cloudflare_http_ports[rand.Intn(len(cloudflare_http_ports))]
+
+	} else if requestedProtocol == "vless_cdn" {
+		userUUIDstring, err = a.setVlessCDNSettingsForInbound(inbound)
+		if err != nil {
+			jsonMsg(c, "添加", err)
+			return
+		}
+
+		inbound.Port = cloudflare_https_ports[rand.Intn(len(cloudflare_https_ports))]
 	}
 
-	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
 	var url string
 
 	inbound.UserId = user.Id
@@ -212,6 +241,16 @@ func (a *APIController) addUser(c *gin.Context) {
 
 	} else if inbound.Protocol == "vless" {
 		url = a.getVlessURL(inbound, userUUIDstring, hostname)
+
+	} else if inbound.Protocol == "vmess_cdn" {
+		url, err = a.getVmessCDNURL(inbound, userUUIDstring, hostname)
+		if err != nil {
+			jsonMsg(c, "添加", err)
+			return
+		}
+
+	} else if inbound.Protocol == "vless_cdn" {
+		url = a.getVlessCDNURL(inbound, userUUIDstring, hostname)
 
 	}
 
@@ -302,6 +341,7 @@ func (a *APIController) getHostname(c *gin.Context, protocol string) string {
 	if protocol == "vmess" {
 		hostname, err = a.settingService.GetServerIP()
 	} else {
+        #vless, trojan, vmess_cdn, vless_cdn
 		hostname, err = a.settingService.GetServerName()
 	}
 
@@ -349,6 +389,42 @@ func (a *APIController) setVmessSettingsForInbound(inbound *model.Inbound) strin
            }
          }
        }
+    }`
+
+	inbound.Sniffing = `{
+        "enabled":true,
+        "destOverride":[
+            "http",
+            "tls"
+        ]
+    }`
+
+	return userUUIDstring
+}
+
+func (a *APIController) setVmessCDNSettingsForInbound(inbound *model.Inbound) string {
+	userUUID := uuid.New()
+	inbound.Settings = fmt.Sprintf(
+		`{
+          "clients": [
+            {
+              "id": "%s",
+              "alterId": 0
+            }
+          ],
+          "disableInsecureEncryption": false
+        }`,
+		userUUID)
+	userUUIDstring := userUUID.String()
+
+	inbound.StreamSettings = `{
+      "network": "ws",
+      "security": "none",
+      "wsSettings": {
+        "acceptProxyProtocol": false,
+        "path": "/",
+        "headers": {}
+      }
     }`
 
 	inbound.Sniffing = `{
@@ -477,6 +553,63 @@ func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) (stri
 	return userUUIDstring, nil
 }
 
+func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound) (string, error) {
+	userUUID := uuid.New()
+	inbound.Settings = fmt.Sprintf(
+		`{
+            "clients": [
+            {
+              "id": "%s",
+              "flow": "xtls-rprx-direct"
+            }
+          ],
+          "decryption": "none",
+          "fallbacks": []
+        }`,
+		userUUID)
+	userUUIDstring := userUUID.String()
+
+	certificateFile, err := a.settingService.GetCertFile()
+	if err != nil {
+		return "", err
+	}
+
+	keyFile, err := a.settingService.GetKeyFile()
+	if err != nil {
+		return "", err
+	}
+
+	inbound.StreamSettings = fmt.Sprintf(`{
+      "network": "ws",
+      "security": "tls",
+      "tlsSettings": {
+        "serverName": "",
+        "certificates": [
+          {
+              "certificateFile": "%s",
+              "keyFile": "%s"
+          }
+        ],
+        "alpn": []
+      },
+      "wsSettings": {
+        "acceptProxyProtocol": false,
+        "path": "/",
+        "headers": {}
+      }
+    }`, certificateFile, keyFile)
+
+	inbound.Sniffing = `{
+        "enabled":true,
+        "destOverride":[
+            "http",
+            "tls"
+        ]
+    }`
+
+	return userUUIDstring, nil
+}
+
 func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring string, hostname string) (string, error) {
 	obj := VlessObject{
 		Version: "2",
@@ -509,6 +642,37 @@ func (a *APIController) getTrojanURL(inbound *model.Inbound, password string, ho
 }
 
 func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
+	return fmt.Sprintf("vless://%s@%s:%d?type=tcp&security=xtls&flow=xtls-rprx-direct#%s",
+		userUUIDstring, hostname, inbound.Port, inbound.Remark)
+}
+
+func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string) (string, error) {
+	obj := VlessObject{
+		Version: "2",
+		Ps:      inbound.Remark,
+		Address: hostname,
+		Port:    inbound.Port,
+		UUID:    string(userUUIDstring),
+		AlterId: 0,
+		Net:     "ws",
+		Type:    "none",
+		Host:    "",
+		Path:    "/",
+		TLS:     "none",
+	}
+
+	objStr, err := json.Marshal(obj)
+	if err != nil {
+		return "", err
+	}
+
+	objStrBase64 := b64.StdEncoding.EncodeToString(objStr)
+	vmessURL := "vmess://" + objStrBase64
+
+	return vmessURL, nil
+}
+
+func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
 	return fmt.Sprintf("vless://%s@%s:%d?type=tcp&security=xtls&flow=xtls-rprx-direct#%s",
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
 }
