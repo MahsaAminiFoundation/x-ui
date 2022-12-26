@@ -71,13 +71,6 @@ func (s *InboundService) UpdateStreamSettings(remark string, protocol string, st
 }
 
 func (s *InboundService) AddInbound(inbound *model.Inbound) error {
-	exist, err := s.checkPortExist(inbound.Port, 0)
-	if err != nil {
-		return err
-	}
-	if exist {
-		return common.NewError("端口已存在:", inbound.Port)
-	}
 	exist, err = s.checkRemarkProtocolExist(inbound.Remark, string(inbound.Protocol))
 	if err != nil {
 		return err
