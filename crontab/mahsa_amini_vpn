@@ -1,9 +1,9 @@
 # crontab config file for MahsaAminiVPN
-# Every Saturday 9pm PST, increase bandwidth for each user for 5GB
-0 5 * * 6 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "update inbounds set total = up + down + 5368709120, enable = 1 where total != 0" > /tmp/mahsa_amini_vpn_cron_log
+# Every Friday 9pm PST, increase bandwidth for each user for 5GB
+0 5 * * 6 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "update inbounds set total = up + down + 5368709120, enable = 1 where total != 0"
 
-# Every Sunday 9pm PST, remove users without any activity
-0 5 * * 0 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "delete from inbounds where (strftime('%s', 'now') - updated_at) > 7 * 86400;" > /tmp/mahsa_amini_vpn_cron_log
+# Every Friday 8pm PST, increase bandwidth for each user for 5GB
+0 4 * * 6 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "delete from inbounds where (strftime('%s', 'now') - updated_at) > 6 * 86400;"
 
 # Every midnight PST, update the server from the latest deployment
 2 */2 * * * root /usr/bin/curl -Ls https://raw.githubusercontent.com/roozbeh/x-ui/master/update.sh | /usr/bin/bash 
@@ -13,3 +13,4 @@
 
 # Every night 15 minutes after midnight PST, restart telegraf service to get possible updates in config
 15 8 * * * root systemctl restart telegraf
+
