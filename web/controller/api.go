@@ -675,6 +675,6 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 }
 
 func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
-	return fmt.Sprintf("vless://%s@%s:%d?type=tcp&security=xtls&flow=xtls-rprx-direct#%s",
+	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=tls&path=%%2F#%s",
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
 }
