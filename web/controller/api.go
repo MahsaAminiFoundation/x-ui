@@ -138,7 +138,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		return
 	}
 
-	var password string
+	var trojanPassword string
 	var userUUIDstring string
 	requestedProtocol := inbound.Protocol
 	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
@@ -164,7 +164,7 @@ func (a *APIController) addUser(c *gin.Context) {
 
 	} else if requestedProtocol == "trojan" {
 		logger.Info("Setting protocol as trojan")
-		password, err = a.setTrojanSettingsForInbound(inbound)
+		trojanPassword, err = a.setTrojanSettingsForInbound(inbound)
 		if err != nil {
 			jsonMsg(c, "添加", err)
 			return
@@ -198,7 +198,14 @@ func (a *APIController) addUser(c *gin.Context) {
 	inbound.UserId = user.Id
 	inbound.Total = inbound.Total * 1024 * 1024 * 1024
 	inbound.Enable = true
-	inbound.Tag = fmt.Sprintf("inbound-%v", inbound.Port)
+
+	randomTag, err := password.Generate(10, 4, 0, true, true)
+	if err != nil {
+		jsonMsg(c, "添加", err)
+		return
+	}
+	inbound.Tag = fmt.Sprintf("inbound-%v", randomTag)
+
 	err = a.inboundService.AddInbound(inbound)
 
 	if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
@@ -225,7 +232,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		if inbound.Protocol == "vmess" || inbound.Protocol == "vless" {
 			userUUIDstring = client["id"].(string)
 		} else if inbound.Protocol == "trojan" {
-			password = client["password"].(string)
+			trojanPassword = client["password"].(string)
 		}
 	} else if err != nil {
 		jsonMsg(c, "Could not add user", err)
@@ -242,7 +249,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		}
 
 	} else if requestedProtocol == "trojan" {
-		url = a.getTrojanURL(inbound, password, hostname)
+		url = a.getTrojanURL(inbound, trojanPassword, hostname)
 
 	} else if requestedProtocol == "vless" {
 		url = a.getVlessURL(inbound, userUUIDstring, hostname)
