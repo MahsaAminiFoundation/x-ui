@@ -152,7 +152,6 @@ func (a *APIController) addUser(c *gin.Context) {
 		2095,
 	}
 	cloudflare_https_ports := []int{
-		443,
 		2053,
 		2083,
 		2087,
