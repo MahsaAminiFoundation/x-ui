@@ -3,6 +3,7 @@ package controller
 import (
 	b64 "encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -43,7 +44,7 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	g.POST("/delete_user", a.deleteUser)
 	g.POST("/remaining_quota", a.remainingQuota)
 	g.POST("/add_quota", a.addQuota)
-
+	g.POST("/update_xray_template", a.updateXrayTemplate)
 }
 
 func (a *APIController) startTask() {
@@ -686,4 +687,30 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
 	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=tls&path=%%2F#%s",
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
+}
+
+type XrayConfig struct {
+	XrayTemplateConfig string `json:"xrayTemplateConfig" binding:"required"`
+}
+
+func (a *APIController) updateXrayTemplate(c *gin.Context) {
+	var xrayConfig XrayConfig
+	err := c.ShouldBind(&xrayConfig)
+	if err != nil {
+		jsonMsg(c, "添加", err)
+		return
+	}
+	xrayTemplateConfig := xrayConfig.XrayTemplateConfig
+
+	if !json.Valid([]byte(xrayTemplateConfig)) {
+		jsonMsg(c, "Not a valid json string, can not set this as a template", errors.New("INVALID JSON"))
+		return
+	}
+	err = a.settingService.SetXrayConfigTemplate(xrayTemplateConfig)
+	if err != nil {
+		jsonMsg(c, "Can not set the xray template string", err)
+	}
+
+	fmt.Printf("The XrayConfig->XrayTemplateConfig is updated!")
+	jsonMsg(c, "success", nil)
 }
