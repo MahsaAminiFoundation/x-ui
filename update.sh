@@ -127,13 +127,13 @@ EOF
 update_x-ui() {
     cd /usr/local/
 
-    last_version=$(curl -Ls "https://api.github.com/repos/roozbeh/x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    last_version=$(curl -Ls "https://api.github.com/repos/MahsaAminiFoundation/x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     if [[ ! -n "$last_version" ]]; then
         echo -e "${red}检测 x-ui 版本失败，可能是超出 Github API 限制，请稍后再试，或手动指定 x-ui 版本安装${plain}"
         exit 1
     fi
     echo -e "Detected x-ui; Latest version：${last_version}，starting insallation"
-    wget -N --no-check-certificate -O /usr/local/x-ui-linux-${arch}.tar.gz https://github.com/roozbeh/x-ui/releases/download/${last_version}/x-ui-linux-${arch}.tar.gz
+    wget -N --no-check-certificate -O /usr/local/x-ui-linux-${arch}.tar.gz https://github.com/MahsaAminiFoundation/x-ui/releases/download/${last_version}/x-ui-linux-${arch}.tar.gz
     if [[ $? -ne 0 ]]; then
         echo -e "${red}Failed to download x-ui, please make sure your server can download Github files${plain}"
         exit 1
