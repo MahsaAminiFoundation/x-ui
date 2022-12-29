@@ -86,7 +86,9 @@ config_telegraf_agent() {
     #install telegraf
     wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
     source /etc/os-release
-    #echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+    if [[ x"${release}" == x"debian" ]]; then
+        echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+    fi
     sudo apt-get update && sudo apt-get install telegraf
 
     # make changes to unit file /etc/systemd/system/multi-user.target.wants/telegraf.service
