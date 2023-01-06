@@ -35,6 +35,7 @@ var defaultValueMap = map[string]string{
 	"tgRunTime":          "",
 	"serverName":         "localhost",
 	"serverIP":           "127.0.0.1",
+	"fakeServerName":     "namebright.com",
 }
 
 type SettingService struct {
@@ -270,6 +271,14 @@ func (s *SettingService) GetServerIP() (string, error) {
 
 func (s *SettingService) SetServerIP(ip string) error {
 	return s.setString("serverIP", ip)
+}
+
+func (s *SettingService) GetFakeServerName() (string, error) {
+	return s.getString("fakeServerName")
+}
+
+func (s *SettingService) SetFakeServerName(name string) error {
+	return s.setString("fakeServerName", name)
 }
 
 func (s *SettingService) GetSecret() ([]byte, error) {
