@@ -143,22 +143,17 @@ func (a *APIController) addUser(c *gin.Context) {
 	var userUUIDstring string
 	requestedProtocol := inbound.Protocol
 	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
-	cloudflare_http_ports := []int{
-		80,
-		//8080,
-		//8880,
-		//2052,
-		//2082,
-		//2086,
-		//2095,
+
+	var fakeServerName string
+	if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
+		fakeServerName, err = a.settingService.GetFakeServerName()
+		if err != nil {
+			jsonMsg(c, "Could not find config for fakeServerName", err)
+			return
+		}
 	}
-	cloudflare_https_ports := []int{
-		2053,
-		2083,
-		2087,
-		2096,
-		8443,
-	}
+	hostname := a.getHostname(c, string(requestedProtocol))
+
 	if requestedProtocol == "vmess" {
 		userUUIDstring = a.setVmessSettingsForInbound(inbound)
 
@@ -178,8 +173,7 @@ func (a *APIController) addUser(c *gin.Context) {
 			return
 		}
 	} else if requestedProtocol == "vmess_cdn" {
-		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound)
-		//inbound.Port = cloudflare_http_ports[rand.Intn(len(cloudflare_http_ports))]
+		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
 		inbound.Protocol = "vmess"
 
 	} else if requestedProtocol == "vless_cdn" {
@@ -189,7 +183,6 @@ func (a *APIController) addUser(c *gin.Context) {
 			return
 		}
 
-		inbound.Port = cloudflare_https_ports[rand.Intn(len(cloudflare_https_ports))]
 		inbound.Protocol = "vless"
 	}
 
@@ -239,8 +232,6 @@ func (a *APIController) addUser(c *gin.Context) {
 		return
 	}
 
-	hostname := a.getHostname(c, string(requestedProtocol))
-
 	if requestedProtocol == "vmess" {
 		url, err = a.getVmessURL(inbound, userUUIDstring, hostname)
 		if err != nil {
@@ -255,7 +246,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		url = a.getVlessURL(inbound, userUUIDstring, hostname)
 
 	} else if requestedProtocol == "vmess_cdn" {
-		url, err = a.getVmessCDNURL(inbound, userUUIDstring, hostname)
+		url, err = a.getVmessCDNURL(inbound, userUUIDstring, hostname, fakeServerName)
 		if err != nil {
 			jsonMsg(c, "添加", err)
 			return
@@ -414,7 +405,7 @@ func (a *APIController) setVmessSettingsForInbound(inbound *model.Inbound) strin
 	return userUUIDstring
 }
 
-func (a *APIController) setVmessCDNSettingsForInbound(inbound *model.Inbound) string {
+func (a *APIController) setVmessCDNSettingsForInbound(inbound *model.Inbound, serverName string) string {
 	userUUID := uuid.New()
 	inbound.Settings = fmt.Sprintf(
 		`{
@@ -435,9 +426,11 @@ func (a *APIController) setVmessCDNSettingsForInbound(inbound *model.Inbound) st
       "wsSettings": {
         "acceptProxyProtocol": false,
         "path": "/r%s",
-        "headers": {}
+        "headers": {
+              "Host": "%s"
+        }        
       }
-    }`,inbound.Remark)
+    }`, inbound.Remark, serverName)
 
 	inbound.Sniffing = `{
         "enabled":true,
@@ -658,17 +651,17 @@ func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring strin
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
 }
 
-func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string) (string, error) {
+func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) (string, error) {
 	obj := VlessObject{
 		Version: "2",
 		Ps:      inbound.Remark,
-		Address: hostname,
+		Address: fakeServerName,
 		Port:    80,
 		UUID:    string(userUUIDstring),
 		AlterId: 0,
 		Net:     "ws",
 		Type:    "none",
-		Host:    "",
+		Host:    hostname,
 		Path:    "/",
 		TLS:     "none",
 	}
