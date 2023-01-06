@@ -8,4 +8,4 @@ x-ui-*.tar.gz
 /release.sh
 .sync*
 main
-./scripts/config_dictionary.json
+./scripts/config_dictionary.py
