@@ -179,6 +179,7 @@ class AllSetting {
         this.xrayTemplateConfig = "";
         this.serverName = "";
         this.serverIP = "";
+        this.fakeServerName = "";
  
         this.timeLocation = "Asia/Shanghai";
 
