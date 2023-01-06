@@ -4,6 +4,7 @@ import json
 from urllib.parse import urlparse
 from urllib.parse import parse_qs
 import base64
+from config_dictionary import config_dictionary
 
 MAHSA_LEG_REMARK = "mahsa_leg_vmess" 
 ENSURE_NEW_PORT = False
@@ -619,10 +620,6 @@ def get_code_from_server(server_address, remark_name):
 
 import json
   
-f = open('config_dictionary.json')
-config_dictionary = json.load(f)
-f.close()
-
 def delete_user_from_server(hostname, remark):
     print("deleting {} from {}".format(remark, hostname))
     delete_user_data = {
