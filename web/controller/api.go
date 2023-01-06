@@ -145,12 +145,12 @@ func (a *APIController) addUser(c *gin.Context) {
 	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
 	cloudflare_http_ports := []int{
 		80,
-		8080,
-		8880,
-		2052,
-		2082,
-		2086,
-		2095,
+		//8080,
+		//8880,
+		//2052,
+		//2082,
+		//2086,
+		//2095,
 	}
 	cloudflare_https_ports := []int{
 		2053,
@@ -179,7 +179,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		}
 	} else if requestedProtocol == "vmess_cdn" {
 		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound)
-		inbound.Port = cloudflare_http_ports[rand.Intn(len(cloudflare_http_ports))]
+		//inbound.Port = cloudflare_http_ports[rand.Intn(len(cloudflare_http_ports))]
 		inbound.Protocol = "vmess"
 
 	} else if requestedProtocol == "vless_cdn" {
@@ -429,15 +429,15 @@ func (a *APIController) setVmessCDNSettingsForInbound(inbound *model.Inbound) st
 		userUUID)
 	userUUIDstring := userUUID.String()
 
-	inbound.StreamSettings = `{
+	inbound.StreamSettings = fmt.Sprintf(`{
       "network": "ws",
       "security": "none",
       "wsSettings": {
         "acceptProxyProtocol": false,
-        "path": "/",
+        "path": "/r%s",
         "headers": {}
       }
-    }`
+    }`,inbound.Remark)
 
 	inbound.Sniffing = `{
         "enabled":true,
@@ -663,7 +663,7 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 		Version: "2",
 		Ps:      inbound.Remark,
 		Address: hostname,
-		Port:    inbound.Port,
+		Port:    80,
 		UUID:    string(userUUIDstring),
 		AlterId: 0,
 		Net:     "ws",
