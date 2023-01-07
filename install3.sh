@@ -131,10 +131,7 @@ config_after_install() {
 config_cdn_stuff() {
     fake_domain_name=$1
     
-    if [[ x"${release}" == x"centos" ]]; then
-    else
-        apt -y install curl git nginx libnginx-mod-stream python3-certbot-nginx
-    fi
+    apt -y install curl git nginx libnginx-mod-stream python3-certbot-nginx
     
     echo -e "${yellow}Panel fakeServerName setting will be ${fake_domain_name}${plain}"
     /usr/local/x-ui/x-ui setting -fakeServerName ${fake_domain_name}
@@ -144,13 +141,13 @@ install_x-ui() {
     systemctl stop x-ui
     cd /usr/local/
 
-    last_version=$(curl -Ls "https://api.github.com/repos/roozbeh/x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    last_version=$(curl -Ls "https://api.github.com/repos/MahsaAminiFoundation/x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     if [[ ! -n "$last_version" ]]; then
         echo -e "${red}检测 x-ui 版本失败，可能是超出 Github API 限制，请稍后再试，或手动指定 x-ui 版本安装${plain}"
         exit 1
     fi
     echo -e "Detected x-ui; Latest version：${last_version}，starting insallation"
-    wget -N --no-check-certificate -O /usr/local/x-ui-linux-${arch}.tar.gz https://github.com/roozbeh/x-ui/releases/download/${last_version}/x-ui-linux-${arch}.tar.gz
+    wget -N --no-check-certificate -O /usr/local/x-ui-linux-${arch}.tar.gz https://github.com/MahsaAminiFoundation/x-ui/releases/download/${last_version}/x-ui-linux-${arch}.tar.gz
     if [[ $? -ne 0 ]]; then
         echo -e "${red}Failed to download x-ui, please make sure your server can download Github files${plain}"
         exit 1
@@ -165,7 +162,7 @@ install_x-ui() {
     cd x-ui
     chmod +x x-ui bin/xray-linux-${arch}
     cp -f x-ui.service /etc/systemd/system/
-    wget --no-check-certificate -O /usr/bin/x-ui https://raw.githubusercontent.com/roozbeh/x-ui/main/x-ui.sh
+    wget --no-check-certificate -O /usr/bin/x-ui https://raw.githubusercontent.com/MahsaAminiFoundation/x-ui/main/x-ui.sh
     chmod +x /usr/local/x-ui/x-ui.sh
     chmod +x /usr/bin/x-ui
     config_ssl $3
@@ -206,4 +203,5 @@ install_base
 # $2 -> password
 # $3 -> domain name
 # $4 -> server ip
-install_x-ui $1 $2 $3 $4
+# $4 -> server fake name
+install_x-ui $1 $2 $3 $4 $5
