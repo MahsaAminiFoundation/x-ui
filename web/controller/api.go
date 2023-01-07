@@ -13,15 +13,15 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"x-ui/database/model"
 	"x-ui/logger"
+	"x-ui/util/common"
 	"x-ui/web/entity"
 	"x-ui/web/global"
 	"x-ui/web/service"
-	"os/exec"
-        "x-ui/util/common"
 )
 
 const NGINX_CONFIG = "/etc/nginx/conf.d/mahsaaminivpn.conf"
@@ -181,7 +181,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
 		inbound.Protocol = "vmess"
 
-		err = a.updateNginxConfig(inbound)
+		err = a.updateNginxConfig(inbound, hostname)
 		if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
 			dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(inbound.Remark, string(inbound.Protocol))
 			if err != nil {
@@ -725,7 +725,25 @@ func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring st
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
 }
 
-func (a *APIController) updateNginxConfig(inbound *model.Inbound) error {
+func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName string) error {
+	if _, err := os.Stat(NGINX_CONFIG); errors.Is(err, os.ErrNotExist) {
+		nginx_config = fmt.Sprintf(`
+        server {
+        	listen 80;
+
+        	# The host name to respond to
+            server_name %s;
+
+            # ADD HERE
+
+        }`, serverName)
+		err = os.WriteFile(NGINX_CONFIG, []byte(new_nginx_config), 0644)
+		if err != nil {
+			logger.Error("unable to write nginx config:", err)
+			return err
+		}
+	}
+
 	dat, err := os.ReadFile(NGINX_CONFIG)
 	if err != nil {
 		logger.Error("unable to read nginx config:", err)
@@ -734,7 +752,7 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound) error {
 	nginx_config := string(dat)
 
 	inbound_path := fmt.Sprintf("/r%s", inbound.Remark)
-	if (strings.Contains(nginx_config, inbound_path)) {
+	if strings.Contains(nginx_config, inbound_path) {
 		logger.Error("path already exists in the config file, can not reconfigure")
 		return common.NewError("ALREADY_EXISTS")
 	}
@@ -759,12 +777,12 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound) error {
 		return err
 	}
 
-        cmd := exec.Command("/etc/init.d/nginx", "restart")
-        err = cmd.Run()
-        if err != nil {
+	cmd := exec.Command("/etc/init.d/nginx", "restart")
+	err = cmd.Run()
+	if err != nil {
 		logger.Error("unable to restart nginx:", err)
-       		return err
-        }
+		return err
+	}
 
 	return nil
 }
