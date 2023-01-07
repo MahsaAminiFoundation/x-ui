@@ -727,7 +727,7 @@ func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring st
 
 func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName string) error {
 	if _, err := os.Stat(NGINX_CONFIG); errors.Is(err, os.ErrNotExist) {
-		nginx_config = fmt.Sprintf(`
+		nginx_config := fmt.Sprintf(`
         server {
         	listen 80;
 
@@ -737,7 +737,7 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName str
             # ADD HERE
 
         }`, serverName)
-		err = os.WriteFile(NGINX_CONFIG, []byte(new_nginx_config), 0644)
+		err = os.WriteFile(NGINX_CONFIG, []byte(nginx_config), 0644)
 		if err != nil {
 			logger.Error("unable to write nginx config:", err)
 			return err
