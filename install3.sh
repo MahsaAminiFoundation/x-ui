@@ -88,9 +88,9 @@ config_cronjob_files() {
 }
 
 config_ssl() {
-    domain_name=$1
+    direct_domain_name=$1
         
-    certbot certonly --standalone --preferred-challenges http --agree-tos --email mahsa@amini.com -d ${domain_name}
+    certbot certonly --standalone --preferred-challenges http --agree-tos --email mahsa@amini.com -d ${direct_domain_name}
 }
 
 #This function will be called when user installed x-ui out of sercurity
@@ -98,10 +98,11 @@ config_after_install() {
     config_account=$1
     config_password=$2
     config_port=8443
-    domain_name=$3
+    cdn_domain_name=$3
     server_ip=$4
-    cert_file="/etc/letsencrypt/live/${domain_name}/fullchain.pem"
-    key_file="/etc/letsencrypt/live/${domain_name}/privkey.pem"
+    ssl_domain_name=$5
+    cert_file="/etc/letsencrypt/live/${ssl_domain_name}/fullchain.pem"
+    key_file="/etc/letsencrypt/live/${ssl_domain_name}/privkey.pem"
         
     /usr/sbin/ufw disable 
     echo -e "${yellow}Your username will be:${config_account}${plain}"
@@ -114,8 +115,8 @@ config_after_install() {
     echo -e "${yellow}Panel port setting is completed${plain}"
     /usr/local/x-ui/x-ui setting -port ${config_port}
 
-    echo -e "${yellow}Panel serverName setting will be ${domain_name} completed${plain}"
-    /usr/local/x-ui/x-ui setting -serverName ${domain_name}
+    echo -e "${yellow}Panel serverName setting will be ${cdn_domain_name} completed${plain}"
+    /usr/local/x-ui/x-ui setting -serverName ${cdn_domain_name}
     echo -e "${yellow}Panel serverIP setting will be ${server_ip} completed${plain}"
     /usr/local/x-ui/x-ui setting -serverIP ${server_ip}
 
@@ -141,10 +142,10 @@ install_x-ui() {
     config_account=$1
     config_password=$2
     config_port=8443
-    domain_name=$3
+    cdn_domain_name=$3
     server_ip=$4
     fake_server_name=$5
-    robot_domain_name=$6
+    ssl_domain_name=$6
 
     systemctl stop x-ui
     cd /usr/local/
@@ -173,8 +174,8 @@ install_x-ui() {
     wget --no-check-certificate -O /usr/bin/x-ui https://raw.githubusercontent.com/MahsaAminiFoundation/x-ui/main/x-ui.sh
     chmod +x /usr/local/x-ui/x-ui.sh
     chmod +x /usr/bin/x-ui
-    config_ssl ${robot_domain_name}
-    config_after_install ${config_account} ${config_password} ${domain_name} ${server_ip}
+    config_ssl ${ssl_domain_name}
+    config_after_install ${config_account} ${config_password} ${cdn_domain_name} ${server_ip} ${ssl_domain_name}
     config_cronjob_files
     config_cdn_stuff ${fake_server_name}
     #echo -e "如果是全新安装，默认网页端口为 ${green}54321${plain}，用户名和密码默认都是 ${green}admin${plain}"
