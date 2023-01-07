@@ -20,6 +20,8 @@ import (
 	"x-ui/web/entity"
 	"x-ui/web/global"
 	"x-ui/web/service"
+	"os/exec"
+        "x-ui/util/common"
 )
 
 const NGINX_CONFIG = "/etc/nginx/conf.d/mahsaaminivpn.conf"
@@ -179,6 +181,44 @@ func (a *APIController) addUser(c *gin.Context) {
 		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
 		inbound.Protocol = "vmess"
 
+		err = a.updateNginxConfig(inbound)
+		if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
+			dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(inbound.Remark, string(inbound.Protocol))
+			if err != nil {
+				jsonMsg(c, "添加", err)
+				return
+			}
+
+			//Inbound exists with the right protocol
+			inbound = dbInbound
+			var settings map[string]any
+			json.Unmarshal([]byte(inbound.Settings), &settings)
+
+			clients := settings["clients"].([]any)
+			client := clients[0].(map[string]any)
+			if inbound.Protocol == "vmess" || inbound.Protocol == "vless" {
+				userUUIDstring = client["id"].(string)
+			}
+
+			url, err := a.getVmessCDNURL(inbound, userUUIDstring, hostname, fakeServerName)
+			if err != nil {
+				jsonMsg(c, "添加", err)
+				return
+			}
+
+			m := entity.UserAddResp{
+				Obj:                nil,
+				Success:            true,
+				Msg:                url,
+				TotalBandwidth:     int(inbound.Total / 1000 / 1000),
+				RemainingBandwidth: int((inbound.Total - inbound.Up - inbound.Down) / 1000 / 1000),
+			}
+			c.JSON(http.StatusOK, m)
+			return
+		} else if err != nil {
+			jsonMsg(c, "Fail to update nginx config", err)
+			return
+		}
 	} else if requestedProtocol == "vless_cdn" {
 		userUUIDstring, err = a.setVlessCDNSettingsForInbound(inbound)
 		if err != nil {
@@ -249,12 +289,6 @@ func (a *APIController) addUser(c *gin.Context) {
 		url = a.getVlessURL(inbound, userUUIDstring, hostname)
 
 	} else if requestedProtocol == "vmess_cdn" {
-		err = a.updateNginxConfig(inbound)
-		if err != nil {
-			jsonMsg(c, "Fail to update nginx config", err)
-			return
-		}
-
 		url, err = a.getVmessCDNURL(inbound, userUUIDstring, hostname, fakeServerName)
 		if err != nil {
 			jsonMsg(c, "添加", err)
@@ -671,7 +705,7 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 		Net:     "ws",
 		Type:    "none",
 		Host:    hostname,
-		Path:    "/",
+		Path:    fmt.Sprintf("/r%s", inbound.Remark),
 		TLS:     "none",
 	}
 
@@ -699,8 +733,14 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound) error {
 	}
 	nginx_config := string(dat)
 
+	inbound_path := fmt.Sprintf("/r%s", inbound.Remark)
+	if (strings.Contains(nginx_config, inbound_path)) {
+		logger.Error("path already exists in the config file, can not reconfigure")
+		return common.NewError("ALREADY_EXISTS")
+	}
+
 	location_config := fmt.Sprintf(`
-        location /test2 {
+        location %s {
             proxy_pass  http://127.0.0.1:%d/r%s;
 
             proxy_set_header Host $host;
@@ -710,7 +750,7 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound) error {
             proxy_set_header Connection "upgrade";	
         }
         # ADD HERE
-    `, inbound.Port, inbound.Remark)
+    `, inbound_path, inbound.Port, inbound.Remark)
 
 	new_nginx_config := strings.Replace(nginx_config, "# ADD HERE", location_config, 1)
 	err = os.WriteFile(NGINX_CONFIG, []byte(new_nginx_config), 0644)
@@ -718,6 +758,13 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound) error {
 		logger.Error("unable to write nginx config:", err)
 		return err
 	}
+
+        cmd := exec.Command("/etc/init.d/nginx", "restart")
+        err = cmd.Run()
+        if err != nil {
+		logger.Error("unable to restart nginx:", err)
+       		return err
+        }
 
 	return nil
 }
