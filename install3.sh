@@ -138,6 +138,14 @@ config_cdn_stuff() {
 }
 
 install_x-ui() {
+    config_account=$1
+    config_password=$2
+    config_port=8443
+    domain_name=$3
+    server_ip=$4
+    fake_server_name=$5
+    robot_domain_name=$6
+
     systemctl stop x-ui
     cd /usr/local/
 
@@ -165,10 +173,10 @@ install_x-ui() {
     wget --no-check-certificate -O /usr/bin/x-ui https://raw.githubusercontent.com/MahsaAminiFoundation/x-ui/main/x-ui.sh
     chmod +x /usr/local/x-ui/x-ui.sh
     chmod +x /usr/bin/x-ui
-    config_ssl $3
-    config_after_install $1 $2 $3 $4
+    config_ssl ${robot_domain_name}
+    config_after_install ${config_account} ${config_password} ${domain_name} ${server_ip}
     config_cronjob_files
-    config_cdn_stuff $5
+    config_cdn_stuff ${fake_server_name}
     #echo -e "如果是全新安装，默认网页端口为 ${green}54321${plain}，用户名和密码默认都是 ${green}admin${plain}"
     #echo -e "请自行确保此端口没有被其他程序占用，${yellow}并且确保 54321 端口已放行${plain}"
     #    echo -e "若想将 54321 修改为其它端口，输入 x-ui 命令进行修改，同样也要确保你修改的端口也是放行的"
@@ -197,11 +205,13 @@ install_x-ui() {
     echo -e "----------------------------------------------"
 }
 
-echo -e "${green}开始安装${plain}"
+if (($# < 6))
+then
+    echo "The number of arguments should be 6"
+    echo "installs.sh <1.username> <2.password> <3.cdn_domain_name> <4.server_ip> <5.fake_server_name> <6.direct_server_name>"
+    exit 2
+fi    
+
+echo -e "${green}MahsaAminiVPN Installation starting${plain}"
 install_base
-# $1 -> username
-# $2 -> password
-# $3 -> domain name
-# $4 -> server ip
-# $4 -> server fake name
-install_x-ui $1 $2 $3 $4 $5
+install_x-ui $1 $2 $3 $4 $5 $6
