@@ -97,7 +97,7 @@ config_ssl() {
 config_after_install() {
     config_account=$1
     config_password=$2
-    config_port=8080
+    config_port=8443
     domain_name=$3
     server_ip=$4
     cert_file="/etc/letsencrypt/live/${domain_name}/fullchain.pem"
