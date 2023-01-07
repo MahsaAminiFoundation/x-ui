@@ -12,6 +12,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"x-ui/database/model"
@@ -20,6 +21,8 @@ import (
 	"x-ui/web/global"
 	"x-ui/web/service"
 )
+
+const NGINX_CONFIG = "/etc/nginx/conf.d/mahsaaminivpn.conf"
 
 type APIController struct {
 	inboundService service.InboundService
@@ -246,6 +249,12 @@ func (a *APIController) addUser(c *gin.Context) {
 		url = a.getVlessURL(inbound, userUUIDstring, hostname)
 
 	} else if requestedProtocol == "vmess_cdn" {
+		err = a.updateNginxConfig(inbound)
+		if err != nil {
+			jsonMsg(c, "Fail to update nginx config", err)
+			return
+		}
+
 		url, err = a.getVmessCDNURL(inbound, userUUIDstring, hostname, fakeServerName)
 		if err != nil {
 			jsonMsg(c, "添加", err)
@@ -680,6 +689,37 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
 	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=tls&path=%%2F#%s",
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
+}
+
+func (a *APIController) updateNginxConfig(inbound *model.Inbound) error {
+	dat, err := os.ReadFile(NGINX_CONFIG)
+	if err != nil {
+		logger.Error("unable to read nginx config:", err)
+		return err
+	}
+	nginx_config := string(dat)
+
+	location_config := fmt.Sprintf(`
+        location /test2 {
+            proxy_pass  http://127.0.0.1:%d/r%s;
+
+            proxy_set_header Host $host;
+
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";	
+        }
+        # ADD HERE
+    `, inbound.Port, inbound.Remark)
+
+	new_nginx_config := strings.Replace(nginx_config, "# ADD HERE", location_config, 1)
+	err = os.WriteFile(NGINX_CONFIG, []byte(new_nginx_config), 0644)
+	if err != nil {
+		logger.Error("unable to write nginx config:", err)
+		return err
+	}
+
+	return nil
 }
 
 type XrayConfig struct {
