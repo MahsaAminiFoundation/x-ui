@@ -46,17 +46,18 @@ type Pager struct {
 }
 
 type AllSetting struct {
-	WebListen   string `json:"webListen" form:"webListen"`
-	WebPort     int    `json:"webPort" form:"webPort"`
-	WebCertFile string `json:"webCertFile" form:"webCertFile"`
-	WebKeyFile  string `json:"webKeyFile" form:"webKeyFile"`
-	WebBasePath string `json:"webBasePath" form:"webBasePath"`
-	TgBotEnable bool   `json:"tgBotEnable" form:"tgBotEnable"`
-	TgBotToken  string `json:"tgBotToken" form:"tgBotToken"`
-	TgBotChatId int    `json:"tgBotChatId" form:"tgBotChatId"`
-	TgRunTime   string `json:"tgRunTime" form:"tgRunTime"`
-	ServerName  string `json:"serverName" form:"serverName"`
-	ServerIP    string `json:"serverIP" form:"serverIP"`
+	WebListen      string `json:"webListen" form:"webListen"`
+	WebPort        int    `json:"webPort" form:"webPort"`
+	WebCertFile    string `json:"webCertFile" form:"webCertFile"`
+	WebKeyFile     string `json:"webKeyFile" form:"webKeyFile"`
+	WebBasePath    string `json:"webBasePath" form:"webBasePath"`
+	TgBotEnable    bool   `json:"tgBotEnable" form:"tgBotEnable"`
+	TgBotToken     string `json:"tgBotToken" form:"tgBotToken"`
+	TgBotChatId    int    `json:"tgBotChatId" form:"tgBotChatId"`
+	TgRunTime      string `json:"tgRunTime" form:"tgRunTime"`
+	ServerName     string `json:"serverName" form:"serverName"`
+	ServerIP       string `json:"serverIP" form:"serverIP"`
+	FakeServerName string `json:"fakeServerName" form:"fakeServerName"`
 
 	XrayTemplateConfig string `json:"xrayTemplateConfig" form:"xrayTemplateConfig"`
 
