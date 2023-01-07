@@ -234,6 +234,23 @@ func updateServerNameSetting(serverName string, serverIP string) {
 	}
 }
 
+func updateFakeServerNameSettings(fakeServerName string) {
+	err := database.InitDB(config.GetDBPath())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	settingService := service.SettingService{}
+	err = settingService.SetFakeServerName(fakeServerName)
+	if err != nil {
+		fmt.Println(err)
+		return
+	} else {
+		logger.Infof("SetFakeServerName=%s success", fakeServerName)
+	}
+}
+
 func updateServerKeySettings(webCertFile string, webKeyFile string) {
 	err := database.InitDB(config.GetDBPath())
 	if err != nil {
@@ -292,6 +309,7 @@ func main() {
 	var show bool
 	var serverName string
 	var serverIP string
+	var fakeServerName string
 	var webCertFile string
 	var webKeyFile string
 
@@ -306,6 +324,7 @@ func main() {
 	settingCmd.BoolVar(&enabletgbot, "enabletgbot", false, "enable telegram bot notify")
 	settingCmd.StringVar(&serverName, "serverName", "", "Server name - DNS setting")
 	settingCmd.StringVar(&serverIP, "serverIP", "", "Server IP address")
+	settingCmd.StringVar(&fakeServerName, "fakeServerName", "", "Fakse Server name - For CDN Only")
 	settingCmd.StringVar(&webCertFile, "webCertFile", "", "Server public keys")
 	settingCmd.StringVar(&webKeyFile, "webKeyFile", "", "Server private key")
 
@@ -362,6 +381,9 @@ func main() {
 		}
 		if (serverName != "") || (serverIP != "") {
 			updateServerNameSetting(serverName, serverIP)
+		}
+		if fakeServerName != "" {
+			updateFakeServerNameSettings(fakeServerName)
 		}
 		if (webCertFile != "") || (webKeyFile != "") {
 			updateServerKeySettings(webCertFile, webKeyFile)
