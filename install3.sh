@@ -132,6 +132,7 @@ config_after_install() {
 config_cdn_stuff() {
     fake_domain_name=$1
     
+    apt-get update
     apt -y install curl git nginx libnginx-mod-stream python3-certbot-nginx
     
     echo -e "${yellow}Panel fakeServerName setting will be ${fake_domain_name}${plain}"
