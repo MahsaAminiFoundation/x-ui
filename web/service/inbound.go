@@ -34,7 +34,7 @@ func (s *InboundService) GetAllInbounds() ([]*model.Inbound, error) {
 	return inbounds, nil
 }
 
-func (s *InboundService) checkPortExist(port int, ignoreId int) (bool, error) {
+func (s *InboundService) CheckPortExist(port int, ignoreId int) (bool, error) {
 	db := database.GetDB()
 	db = db.Model(model.Inbound{}).Where("port = ?", port)
 	if ignoreId > 0 {
@@ -71,7 +71,14 @@ func (s *InboundService) UpdateStreamSettings(remark string, protocol string, st
 }
 
 func (s *InboundService) AddInbound(inbound *model.Inbound) error {
-	exist, err := s.checkRemarkProtocolExist(inbound.Remark, string(inbound.Protocol))
+	exist, err := s.CheckPortExist(inbound.Port, 0)
+	if err != nil {
+		return err
+	}
+	if exist {
+		return common.NewError("Port already exists:", inbound.Port)
+	}
+	exist, err = s.checkRemarkProtocolExist(inbound.Remark, string(inbound.Protocol))
 	if err != nil {
 		return err
 	}
@@ -84,7 +91,7 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) error {
 
 func (s *InboundService) AddInbounds(inbounds []*model.Inbound) error {
 	for _, inbound := range inbounds {
-		exist, err := s.checkPortExist(inbound.Port, 0)
+		exist, err := s.CheckPortExist(inbound.Port, 0)
 		if err != nil {
 			return err
 		}
@@ -150,7 +157,7 @@ func (s *InboundService) GetInbound(id int) (*model.Inbound, error) {
 }
 
 func (s *InboundService) UpdateInbound(inbound *model.Inbound) error {
-	exist, err := s.checkPortExist(inbound.Port, inbound.Id)
+	exist, err := s.CheckPortExist(inbound.Port, inbound.Id)
 	if err != nil {
 		return err
 	}

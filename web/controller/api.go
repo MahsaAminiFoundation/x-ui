@@ -147,7 +147,18 @@ func (a *APIController) addUser(c *gin.Context) {
 	var trojanPassword string
 	var userUUIDstring string
 	requestedProtocol := inbound.Protocol
-	inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
+
+	for true {
+		inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
+		exists, err := a.inboundService.CheckPortExist(inbound.Port, 0)
+		if err != nil {
+			jsonMsg(c, "Could not check for port in DB", err)
+			return
+		}
+		if !exists {
+			break
+		}
+	}
 
 	var fakeServerName string
 	if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
@@ -177,15 +188,22 @@ func (a *APIController) addUser(c *gin.Context) {
 			jsonMsg(c, "添加", err)
 			return
 		}
-	} else if requestedProtocol == "vmess_cdn" {
-		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
-		inbound.Protocol = "vmess"
+	} else if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
+
+		if requestedProtocol == "vmess_cdn" {
+			userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
+			inbound.Protocol = "vmess"
+		} else {
+			userUUIDstring = a.setVlessCDNSettingsForInbound(inbound, hostname)
+			inbound.Protocol = "vless"
+		}
 
 		err = a.updateNginxConfig(inbound, hostname)
 		if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
-			dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(inbound.Remark, string(inbound.Protocol))
+			dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(
+				inbound.Remark, string(inbound.Protocol))
 			if err != nil {
-				jsonMsg(c, "添加", err)
+				jsonMsg(c, "Nginx config exists, but remark does not exist: ", err)
 				return
 			}
 
@@ -196,14 +214,19 @@ func (a *APIController) addUser(c *gin.Context) {
 
 			clients := settings["clients"].([]any)
 			client := clients[0].(map[string]any)
-			if inbound.Protocol == "vmess" || inbound.Protocol == "vless" {
-				userUUIDstring = client["id"].(string)
-			}
+			userUUIDstring = client["id"].(string)
 
-			url, err := a.getVmessCDNURL(inbound, userUUIDstring, hostname, fakeServerName)
-			if err != nil {
-				jsonMsg(c, "添加", err)
-				return
+			var url string
+			if requestedProtocol == "vmess_cdn" {
+				url, err = a.getVmessCDNURL(
+					inbound, userUUIDstring, hostname, fakeServerName)
+				if err != nil {
+					jsonMsg(c, "添加", err)
+					return
+				}
+			} else {
+				url = a.getVlessCDNURL(
+					inbound, userUUIDstring, hostname, fakeServerName)
 			}
 
 			m := entity.UserAddResp{
@@ -219,14 +242,6 @@ func (a *APIController) addUser(c *gin.Context) {
 			jsonMsg(c, "Fail to update nginx config", err)
 			return
 		}
-	} else if requestedProtocol == "vless_cdn" {
-		userUUIDstring, err = a.setVlessCDNSettingsForInbound(inbound)
-		if err != nil {
-			jsonMsg(c, "添加", err)
-			return
-		}
-
-		inbound.Protocol = "vless"
 	}
 
 	var url string
@@ -296,7 +311,7 @@ func (a *APIController) addUser(c *gin.Context) {
 		}
 
 	} else if requestedProtocol == "vless_cdn" {
-		url = a.getVlessCDNURL(inbound, userUUIDstring, hostname)
+		url = a.getVlessCDNURL(inbound, userUUIDstring, hostname, fakeServerName)
 
 	}
 
@@ -601,7 +616,7 @@ func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) (stri
 	return userUUIDstring, nil
 }
 
-func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound) (string, error) {
+func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound, serverName string) string {
 	userUUID := uuid.New()
 	inbound.Settings = fmt.Sprintf(
 		`{
@@ -617,35 +632,17 @@ func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound) (s
 		userUUID)
 	userUUIDstring := userUUID.String()
 
-	certificateFile, err := a.settingService.GetCertFile()
-	if err != nil {
-		return "", err
-	}
-
-	keyFile, err := a.settingService.GetKeyFile()
-	if err != nil {
-		return "", err
-	}
-
 	inbound.StreamSettings = fmt.Sprintf(`{
       "network": "ws",
-      "security": "tls",
-      "tlsSettings": {
-        "serverName": "",
-        "certificates": [
-          {
-              "certificateFile": "%s",
-              "keyFile": "%s"
-          }
-        ],
-        "alpn": []
-      },
+      "security": "none",
       "wsSettings": {
         "acceptProxyProtocol": false,
-        "path": "/",
-        "headers": {}
+        "path": "/r%s",
+        "headers": {
+              "Host": "m233.tooska.xyz"
+        }
       }
-    }`, certificateFile, keyFile)
+    }`, inbound.Remark, serverName)
 
 	inbound.Sniffing = `{
         "enabled":true,
@@ -655,7 +652,7 @@ func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound) (s
         ]
     }`
 
-	return userUUIDstring, nil
+	return userUUIDstring
 }
 
 func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring string, hostname string) (string, error) {
@@ -694,7 +691,10 @@ func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring strin
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
 }
 
-func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) (string, error) {
+func (a *APIController) getVmessCDNURL(inbound *model.Inbound,
+	userUUIDstring string,
+	hostname string,
+	fakeServerName string) (string, error) {
 	obj := VlessObject{
 		Version: "2",
 		Ps:      inbound.Remark,
@@ -720,9 +720,12 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 	return vmessURL, nil
 }
 
-func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
-	return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=tls&path=%%2F#%s",
-		userUUIDstring, hostname, inbound.Port, inbound.Remark)
+func (a *APIController) getVlessCDNURL(inbound *model.Inbound,
+	userUUIDstring string,
+	hostname string,
+	fakeServerName string) string {
+	return fmt.Sprintf("vless://%s@%s:80?type=ws&security=none&path=%%2Fr%s&host=%s#%s",
+		userUUIDstring, fakeServerName, inbound.Remark, hostname, inbound.Remark)
 }
 
 func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName string) error {
