@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 	"x-ui/database/model"
 	"x-ui/logger"
 	"x-ui/util/common"
@@ -162,11 +163,15 @@ func (a *APIController) addUser(c *gin.Context) {
 
 	var fakeServerName string
 	if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
-		fakeServerName, err = a.settingService.GetFakeServerName()
+		fakeServerNames, err := a.settingService.GetFakeServerName()
 		if err != nil {
 			jsonMsg(c, "Could not find config for fakeServerName", err)
 			return
 		}
+		fakeNamesSlice := strings.Split(fakeServerNames, ",")
+		rand.Seed(time.Now().Unix())
+		n := rand.Int() % len(fakeNamesSlice)
+		fakeServerName = fakeNamesSlice[n]
 	}
 	hostname := a.getHostname(c, string(requestedProtocol))
 
@@ -193,14 +198,14 @@ func (a *APIController) addUser(c *gin.Context) {
 		if requestedProtocol == "vmess_cdn" {
 			userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
 			inbound.Protocol = "vmess"
-			pathPrefix = "r"
 		} else {
 			userUUIDstring = a.setVlessCDNSettingsForInbound(inbound, hostname)
 			inbound.Protocol = "vless"
-			pathPrefix = "v"
 		}
 
-		err = a.updateNginxConfig(inbound, hostname, pathPrefix)
+		pathPrefix = a.getPrefixForProtocol(string(inbound.Protocol))
+
+		err = a.addRemarkToNginxConfig(inbound, hostname, pathPrefix)
 		if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
 			dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(
 				inbound.Remark, string(inbound.Protocol))
@@ -344,6 +349,12 @@ func (a *APIController) deleteUser(c *gin.Context) {
 	}
 
 	for _, inbound := range inbounds {
+		prefix := a.getPrefixForProtocol(string(inbound.Protocol))
+		err = a.delRemarkFromNginxConfig(inbound, prefix)
+		if err != nil {
+			jsonMsg(c, "deleteFromNginx", err)
+			return
+		}
 		err = a.inboundService.DelInbound(inbound.Id)
 		if err != nil {
 			jsonMsg(c, "delete", err)
@@ -353,6 +364,16 @@ func (a *APIController) deleteUser(c *gin.Context) {
 
 	jsonMsg(c, "delete", err)
 	a.xrayService.SetToNeedRestart()
+}
+
+func (a *APIController) getPrefixForProtocol(protocol string) string {
+	if protocol == "vmess" {
+		return "r"
+	} else if protocol == "vless" {
+		return "v"
+	} else {
+		return "x"
+	}
 }
 
 func (a *APIController) addQuota(c *gin.Context) {
@@ -724,7 +745,7 @@ func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring st
 		userUUIDstring, fakeServerName, inbound.Remark, hostname, inbound.Remark)
 }
 
-func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName string, pathPrefix string) error {
+func (a *APIController) addRemarkToNginxConfig(inbound *model.Inbound, serverName string, pathPrefix string) error {
 	if _, err := os.Stat(NGINX_CONFIG); errors.Is(err, os.ErrNotExist) {
 		nginx_config := fmt.Sprintf(`
         server {
@@ -778,8 +799,34 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName str
 
 	cmd := exec.Command("/etc/init.d/nginx", "restart")
 	err = cmd.Run()
+	// if err != nil {
+	//     logger.Error("unable to restart nginx:", err)
+	//     return err
+	// }
+
+	return nil
+}
+
+func (a *APIController) delRemarkFromNginxConfig(inbound *model.Inbound, pathPrefix string) error {
+	if _, err := os.Stat(NGINX_CONFIG); errors.Is(err, os.ErrNotExist) {
+		// Not an nginx-based server
+		return nil
+	}
+
+	dat, err := os.ReadFile(NGINX_CONFIG)
 	if err != nil {
-		logger.Error("unable to restart nginx:", err)
+		logger.Error("unable to read nginx config:", err)
+		return err
+	}
+	nginx_config := string(dat)
+
+	inbound_path := fmt.Sprintf("/%s%s", pathPrefix, inbound.Remark)
+	inbound_path_new := fmt.Sprintf("/%s_deleted_%s", pathPrefix, inbound.Remark)
+	new_nginx_config := strings.Replace(nginx_config, inbound_path, inbound_path_new, 2)
+
+	err = os.WriteFile(NGINX_CONFIG, []byte(new_nginx_config), 0644)
+	if err != nil {
+		logger.Error("unable to write nginx config:", err)
 		return err
 	}
 
