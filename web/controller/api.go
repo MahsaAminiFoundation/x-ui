@@ -189,16 +189,18 @@ func (a *APIController) addUser(c *gin.Context) {
 			return
 		}
 	} else if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
-
+		var pathPrefix string
 		if requestedProtocol == "vmess_cdn" {
 			userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
 			inbound.Protocol = "vmess"
+			pathPrefix = "r"
 		} else {
 			userUUIDstring = a.setVlessCDNSettingsForInbound(inbound, hostname)
 			inbound.Protocol = "vless"
+			pathPrefix = "v"
 		}
 
-		err = a.updateNginxConfig(inbound, hostname)
+		err = a.updateNginxConfig(inbound, hostname, pathPrefix)
 		if err != nil && strings.HasPrefix(err.Error(), "ALREADY_EXISTS") {
 			dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(
 				inbound.Remark, string(inbound.Protocol))
@@ -637,7 +639,7 @@ func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound, se
       "security": "none",
       "wsSettings": {
         "acceptProxyProtocol": false,
-        "path": "/r%s",
+        "path": "/v%s",
         "headers": {
               "Host": "m233.tooska.xyz"
         }
@@ -691,10 +693,7 @@ func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring strin
 		userUUIDstring, hostname, inbound.Port, inbound.Remark)
 }
 
-func (a *APIController) getVmessCDNURL(inbound *model.Inbound,
-	userUUIDstring string,
-	hostname string,
-	fakeServerName string) (string, error) {
+func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) (string, error) {
 	obj := VlessObject{
 		Version: "2",
 		Ps:      inbound.Remark,
@@ -720,15 +719,12 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound,
 	return vmessURL, nil
 }
 
-func (a *APIController) getVlessCDNURL(inbound *model.Inbound,
-	userUUIDstring string,
-	hostname string,
-	fakeServerName string) string {
-	return fmt.Sprintf("vless://%s@%s:80?type=ws&security=none&path=%%2Fr%s&host=%s#%s",
+func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) string {
+	return fmt.Sprintf("vless://%s@%s:80?type=ws&security=none&path=%%2Fv%s&host=%s#%s",
 		userUUIDstring, fakeServerName, inbound.Remark, hostname, inbound.Remark)
 }
 
-func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName string) error {
+func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName string, pathPrefix string) error {
 	if _, err := os.Stat(NGINX_CONFIG); errors.Is(err, os.ErrNotExist) {
 		nginx_config := fmt.Sprintf(`
         server {
@@ -754,7 +750,7 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName str
 	}
 	nginx_config := string(dat)
 
-	inbound_path := fmt.Sprintf("/r%s", inbound.Remark)
+	inbound_path := fmt.Sprintf("/%s%s", pathPrefix, inbound.Remark)
 	if strings.Contains(nginx_config, inbound_path) {
 		logger.Error("path already exists in the config file, can not reconfigure")
 		return common.NewError("ALREADY_EXISTS")
@@ -762,7 +758,7 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName str
 
 	location_config := fmt.Sprintf(`
         location %s {
-            proxy_pass  http://127.0.0.1:%d/r%s;
+            proxy_pass  http://127.0.0.1:%d%s;
 
             proxy_set_header Host $host;
 
@@ -771,7 +767,7 @@ func (a *APIController) updateNginxConfig(inbound *model.Inbound, serverName str
             proxy_set_header Connection "upgrade";	
         }
         # ADD HERE
-    `, inbound_path, inbound.Port, inbound.Remark)
+    `, inbound_path, inbound.Port, inbound_path)
 
 	new_nginx_config := strings.Replace(nginx_config, "# ADD HERE", location_config, 1)
 	err = os.WriteFile(NGINX_CONFIG, []byte(new_nginx_config), 0644)
