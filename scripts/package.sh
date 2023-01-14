@@ -1,5 +1,5 @@
 On dev server:
-go build -ldflags "-s -w" main.go 
+git pull && go build -ldflags "-s -w" main.go 
 
 
 On mac laptop:
