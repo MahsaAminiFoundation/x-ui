@@ -641,7 +641,7 @@ func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound, se
         "acceptProxyProtocol": false,
         "path": "/v%s",
         "headers": {
-              "Host": "m233.tooska.xyz"
+              "Host": "%s"
         }
       }
     }`, inbound.Remark, serverName)
