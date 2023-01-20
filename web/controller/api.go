@@ -149,6 +149,14 @@ func (a *APIController) addUser(c *gin.Context) {
 	var userUUIDstring string
 	requestedProtocol := inbound.Protocol
 
+	weeklyQuotaGB, err := a.settingService.GetWeeklyQuota()
+	if err != nil {
+		jsonMsg(c, "添加", err)
+		return
+	}
+
+	inbound.Total = int64(weeklyQuotaGB) * 1024 * 1024 * 1024
+
 	for true {
 		inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
 		exists, err := a.inboundService.CheckPortExist(inbound.Port, 0)
@@ -254,7 +262,6 @@ func (a *APIController) addUser(c *gin.Context) {
 	var url string
 
 	inbound.UserId = user.Id
-	inbound.Total = inbound.Total * 1024 * 1024 * 1024
 	inbound.Enable = true
 
 	randomTag, err := password.Generate(10, 4, 0, true, true)
