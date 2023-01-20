@@ -58,6 +58,7 @@ type AllSetting struct {
 	ServerName     string `json:"serverName" form:"serverName"`
 	ServerIP       string `json:"serverIP" form:"serverIP"`
 	FakeServerName string `json:"fakeServerName" form:"fakeServerName"`
+	WeeklyQuota    int    `json:"weeklyQuota" form:"weeklyQuota"`
 
 	XrayTemplateConfig string `json:"xrayTemplateConfig" form:"xrayTemplateConfig"`
 

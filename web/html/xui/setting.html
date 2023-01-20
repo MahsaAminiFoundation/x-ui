@@ -84,6 +84,12 @@
                                     desc="This should be the surface domain name to be used for CDN codes"
                                     v-model="allSetting.fakeServerName"></setting-list-item>
                                     
+                                <setting-list-item 
+                                    type="number" 
+                                    title="Weekly quota to provide to each user" 
+                                    desc="This is going to be used by add_user and cronjob to manager user weekly quota" 
+                                    v-model.number="allSetting.weeklyQuota"></setting-list-item>
+                                    
                             </a-list>
                         </a-tab-pane>
                         <a-tab-pane key="2" tab="用户设置">

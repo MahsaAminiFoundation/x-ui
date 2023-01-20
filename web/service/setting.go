@@ -36,6 +36,7 @@ var defaultValueMap = map[string]string{
 	"serverName":         "localhost",
 	"serverIP":           "127.0.0.1",
 	"fakeServerName":     "namebright.com",
+	"weeklyQuota":        "5000",
 }
 
 type SettingService struct {
@@ -279,6 +280,14 @@ func (s *SettingService) GetFakeServerName() (string, error) {
 
 func (s *SettingService) SetFakeServerName(name string) error {
 	return s.setString("fakeServerName", name)
+}
+
+func (s *SettingService) GetWeeklyQuota() (int, error) {
+	return s.getInt("weeklyQuota")
+}
+
+func (s *SettingService) SetWeeklyQuota(quota int) error {
+	return s.setInt("weeklyQuota", quota)
 }
 
 func (s *SettingService) GetSecret() ([]byte, error) {
