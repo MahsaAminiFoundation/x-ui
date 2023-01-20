@@ -36,7 +36,7 @@ var defaultValueMap = map[string]string{
 	"serverName":         "localhost",
 	"serverIP":           "127.0.0.1",
 	"fakeServerName":     "namebright.com",
-	"weeklyQuota":        "5000",
+	"weeklyQuota":        "5",
 }
 
 type SettingService struct {
