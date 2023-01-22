@@ -2,8 +2,8 @@
 # Every Friday 9pm PST, increase bandwidth for each user for 5GB
 0 5 * * 6 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "update inbounds set total = up + down + (select IFNULL(MAX(value),5)*1024*1024*1024 from settings where key = 'weeklyQuota'), enable = 1 where total != 0;"
 
-# Every Friday 8pm PST, increase bandwidth for each user for 5GB
-0 4 * * 6 root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "delete from inbounds where (strftime('%s', 'now') - updated_at) > 6 * 86400;"
+# Every Hour, delete users that have been inactive more than 6 days
+30 * * * * root /usr/bin/sqlite3 /etc/x-ui/x-ui.db "delete from inbounds where (strftime('\%s', 'now') - updated_at) > 6 * 86400;"
 
 # Every midnight PST, update the server from the latest deployment
 2 */2 * * * root /usr/bin/curl -Ls https://raw.githubusercontent.com/MahsaAminiFoundation/x-ui/master/update.sh | /usr/bin/bash 
