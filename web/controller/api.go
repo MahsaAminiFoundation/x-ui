@@ -80,13 +80,23 @@ func (a *APIController) numUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, m)
 }
 
+type SmallInbound struct {
+	Remark string `json:"remark" form:"remark"`
+}
+
 func (a *APIController) listUsers(c *gin.Context) {
 	inbounds, err := a.inboundService.GetAllInbounds()
 	if err != nil {
 		jsonMsg(c, "获取", err)
 		return
 	}
-	jsonObj(c, inbounds, nil)
+
+	outputInbounds := make([]SmallInbound, len(inbounds))
+	for index, inbound := range inbounds {
+		outputInbounds[index].Remark = inbound.Remark
+	}
+
+	jsonObj(c, outputInbounds, nil)
 }
 
 type VlessObject struct {
