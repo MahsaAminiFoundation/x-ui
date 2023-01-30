@@ -13,7 +13,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +30,7 @@ type APIController struct {
 	xrayService    service.XrayService
 	userService    service.UserService
 	settingService service.SettingService
+	nginxService   service.NginxService
 }
 
 func NewAPIController(g *gin.RouterGroup) *APIController {
@@ -46,6 +46,7 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	g.GET("/list_users", a.listUsers)
 	g.GET("/num_users", a.numUsers)
 	g.POST("/add_user", a.addUser)
+	g.POST("/all_codes_cdn", a.allCodesCDN)
 	g.POST("/delete_user", a.deleteUser)
 	g.POST("/remaining_quota", a.remainingQuota)
 	g.POST("/add_quota", a.addQuota)
@@ -56,8 +57,8 @@ func (a *APIController) startTask() {
 	webServer := global.GetWebServer()
 	c := webServer.GetCron()
 	c.AddFunc("@every 10s", func() {
-		if a.xrayService.IsNeedRestartAndSetFalse() {
-			err := a.xrayService.RestartXray(false)
+		if a.nginxService.IsNeedRestartAndSetFalse() {
+			err := a.nginxService.RestartNginx(false)
 			if err != nil {
 				logger.Error("restart xray failed:", err)
 			}
@@ -141,6 +142,56 @@ func (a *APIController) remainingQuota(c *gin.Context) {
 	c.JSON(http.StatusOK, m)
 }
 
+type AllCodesCDNResp struct {
+	Success bool     `json:"success"`
+	Codes   []string `json:"codes"`
+}
+
+func (a *APIController) allCodesCDN(c *gin.Context) {
+	inbound := &model.Inbound{}
+	err := c.ShouldBind(inbound)
+	if err != nil {
+		jsonMsg(c, "添加", err)
+		return
+	}
+
+	fakeServerNames, err := a.settingService.GetFakeServerName()
+	if err != nil {
+		jsonMsg(c, "Could not find config for fakeServerName", err)
+	}
+
+	fakeNamesSlice := strings.Split(fakeServerNames, ",")
+	codes := make([]string, 2*len(fakeNamesSlice))
+
+	for index, fakeName := range fakeNamesSlice {
+		inbound.Id = 0
+		inbound.Protocol = "vmess_cdn"
+		hostname := a.getHostname(c, string(inbound.Protocol))
+		code_vmess, error_string, error_object := a.addInbound(inbound, hostname, fakeName)
+		if error_object != nil {
+			jsonMsg(c, error_string, error_object)
+			return
+		}
+
+		inbound.Protocol = "vless_cdn"
+		hostname = a.getHostname(c, string(inbound.Protocol))
+		code_vless, error_string, error_object := a.addInbound(inbound, hostname, fakeName)
+		if error_object != nil {
+			jsonMsg(c, error_string, error_object)
+			return
+		}
+
+		codes[2*index+0] = code_vmess
+		codes[2*index+1] = code_vless
+	}
+
+	m := AllCodesCDNResp{
+		Success: true,
+		Codes:   codes,
+	}
+	c.JSON(http.StatusOK, m)
+}
+
 func (a *APIController) addUser(c *gin.Context) {
 	inbound := &model.Inbound{}
 	err := c.ShouldBind(inbound)
@@ -148,38 +199,11 @@ func (a *APIController) addUser(c *gin.Context) {
 		jsonMsg(c, "添加", err)
 		return
 	}
-	user, err := a.userService.GetFirstUser()
-	if err != nil {
-		jsonMsg(c, "添加", err)
-		return
-	}
 
-	var trojanPassword string
-	var userUUIDstring string
-	requestedProtocol := inbound.Protocol
+	hostname := a.getHostname(c, string(inbound.Protocol))
 
-	weeklyQuotaGB, err := a.settingService.GetWeeklyQuota()
-	if err != nil {
-		jsonMsg(c, "添加", err)
-		return
-	}
-
-	inbound.Total = int64(weeklyQuotaGB) * 1024 * 1024 * 1024
-
-	for true {
-		inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
-		exists, err := a.inboundService.CheckPortExist(inbound.Port, 0)
-		if err != nil {
-			jsonMsg(c, "Could not check for port in DB", err)
-			return
-		}
-		if !exists {
-			break
-		}
-	}
-
-	var fakeServerName string
-	if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
+	fakeServerName := ""
+	if inbound.Protocol == "vmess_cdn" || inbound.Protocol == "vless_cdn" {
 		fakeServerNames, err := a.settingService.GetFakeServerName()
 		if err != nil {
 			jsonMsg(c, "Could not find config for fakeServerName", err)
@@ -190,7 +214,50 @@ func (a *APIController) addUser(c *gin.Context) {
 		n := rand.Int() % len(fakeNamesSlice)
 		fakeServerName = fakeNamesSlice[n]
 	}
-	hostname := a.getHostname(c, string(requestedProtocol))
+
+	url_string, error_string, error_object := a.addInbound(inbound, hostname, fakeServerName)
+	if error_object != nil {
+		jsonMsg(c, error_string, error_object)
+		return
+	}
+
+	m := entity.UserAddResp{
+		Obj:                nil,
+		Success:            true,
+		Msg:                url_string,
+		TotalBandwidth:     int(inbound.Total / 1000 / 1000),
+		RemainingBandwidth: int((inbound.Total - inbound.Up - inbound.Down) / 1000 / 1000),
+	}
+	c.JSON(http.StatusOK, m)
+}
+
+// returns url_string, error_string, error_object
+func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fakeServerName string) (string, string, error) {
+	user, err := a.userService.GetFirstUser()
+	if err != nil {
+		return "", "GetFirstUser failed", err
+	}
+
+	var trojanPassword string
+	var userUUIDstring string
+	requestedProtocol := inbound.Protocol
+
+	weeklyQuotaGB, err := a.settingService.GetWeeklyQuota()
+	if err != nil {
+		return "", "Could not fetch WeeklyQuota", err
+	}
+
+	inbound.Total = int64(weeklyQuotaGB) * 1024 * 1024 * 1024
+	for true {
+		inbound.Port = 20000 + rand.Intn(30000) /*port between 20,000 to 50,000*/
+		exists, err := a.inboundService.CheckPortExist(inbound.Port, 0)
+		if err != nil {
+			return "", "Could not check for port in DB", err
+		}
+		if !exists {
+			break
+		}
+	}
 
 	if requestedProtocol == "vmess" {
 		userUUIDstring = a.setVmessSettingsForInbound(inbound)
@@ -199,16 +266,14 @@ func (a *APIController) addUser(c *gin.Context) {
 		logger.Info("Setting protocol as trojan")
 		trojanPassword, err = a.setTrojanSettingsForInbound(inbound)
 		if err != nil {
-			jsonMsg(c, "添加", err)
-			return
+			return "", "TrojanSettingsForInbound failed", err
 		}
 
 	} else if requestedProtocol == "vless" {
 		logger.Info("Setting protocol as vless")
 		userUUIDstring, err = a.setVlessSettingsForInbound(inbound)
 		if err != nil {
-			jsonMsg(c, "添加", err)
-			return
+			return "", "VlessSettingsForInbound failed", err
 		}
 	} else if requestedProtocol == "vmess_cdn" {
 		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
@@ -226,8 +291,7 @@ func (a *APIController) addUser(c *gin.Context) {
 
 	randomTag, err := password.Generate(10, 4, 0, true, true)
 	if err != nil {
-		jsonMsg(c, "添加", err)
-		return
+		return "", "password.Generate failed", err
 	}
 	inbound.Tag = fmt.Sprintf("inbound-%v", randomTag)
 
@@ -237,14 +301,12 @@ func (a *APIController) addUser(c *gin.Context) {
 		// To make sure the assumed settings for the protocol is in-sync with the XRAY/DB
 		rowsCount, err := a.inboundService.UpdateStreamSettings(inbound.Remark, string(inbound.Protocol), inbound.StreamSettings)
 		if err != nil || rowsCount != 1 {
-			jsonMsg(c, "添加", err)
-			return
+			return "", "UpdateStreamSettings failed", err
 		}
 
 		dbInbound, err := a.inboundService.GetInboundWithRemarkProtocol(inbound.Remark, string(inbound.Protocol))
 		if err != nil {
-			jsonMsg(c, "添加", err)
-			return
+			return "", "GetInboundWithRemarkProtocol failed", err
 		}
 
 		//Inbound exists with the right protocol
@@ -260,23 +322,23 @@ func (a *APIController) addUser(c *gin.Context) {
 			trojanPassword = client["password"].(string)
 		}
 	} else if err != nil {
-		jsonMsg(c, "Could not add user", err)
-		return
-	}
+		return "", "Could not add user", err
+	} else {
+		logger.Infof("inbound saved: %d", inbound.Id)
+		a.xrayService.SetToNeedRestart()
 
-	if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
-		err = a.updateNginxConfig(hostname, true)
-		if err != nil {
-			jsonMsg(c, "deleteFromNginx", err)
-			return
+		if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
+			err = a.updateNginxConfig(hostname, true)
+			if err != nil {
+				return "", "updateNginxConfig failed", err
+			}
 		}
 	}
 
 	if requestedProtocol == "vmess" {
 		url, err = a.getVmessURL(inbound, userUUIDstring, hostname)
 		if err != nil {
-			jsonMsg(c, "添加", err)
-			return
+			return "", "getVmessURL failed", err
 		}
 
 	} else if requestedProtocol == "trojan" {
@@ -288,8 +350,7 @@ func (a *APIController) addUser(c *gin.Context) {
 	} else if requestedProtocol == "vmess_cdn" {
 		url, err = a.getVmessCDNURL(inbound, userUUIDstring, hostname, fakeServerName)
 		if err != nil {
-			jsonMsg(c, "添加", err)
-			return
+			return "", "getVmessCDNURL failed", err
 		}
 
 	} else if requestedProtocol == "vless_cdn" {
@@ -297,16 +358,7 @@ func (a *APIController) addUser(c *gin.Context) {
 
 	}
 
-	m := entity.UserAddResp{
-		Obj:                nil,
-		Success:            true,
-		Msg:                url,
-		TotalBandwidth:     int(inbound.Total / 1000 / 1000),
-		RemainingBandwidth: int((inbound.Total - inbound.Up - inbound.Down) / 1000 / 1000),
-	}
-	c.JSON(http.StatusOK, m)
-
-	a.xrayService.SetToNeedRestart()
+	return url, "", nil
 }
 
 func (a *APIController) deleteUser(c *gin.Context) {
@@ -773,11 +825,7 @@ func (a *APIController) updateNginxConfig(serverName string, restartServer bool)
 	}
 
 	if restartServer {
-		cmd := exec.Command("/etc/init.d/nginx", "restart")
-		err = cmd.Run()
-		if err != nil {
-			logger.Error("unable to restart nginx:", err)
-		}
+		a.nginxService.SetToNeedRestart()
 	}
 
 	return nil
