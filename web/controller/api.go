@@ -51,6 +51,7 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	g.POST("/remaining_quota", a.remainingQuota)
 	g.POST("/add_quota", a.addQuota)
 	g.POST("/update_xray_template", a.updateXrayTemplate)
+	g.POST("/update_config", a.updateConfig)
 }
 
 func (a *APIController) startTask() {
@@ -862,5 +863,42 @@ func (a *APIController) updateXrayTemplate(c *gin.Context) {
 	}
 
 	fmt.Printf("The XrayConfig->XrayTemplateConfig is updated!")
+	jsonMsg(c, "success", nil)
+}
+
+type ConfigUpdate struct {
+	Key   string `json:"key" binding:"required" form:"key"`
+	Value string `json:"value" binding:"required" form:"value"`
+}
+
+func (a *APIController) updateConfig(c *gin.Context) {
+	var configUpdate ConfigUpdate
+	err := c.ShouldBind(&configUpdate)
+	if err != nil {
+		jsonMsg(c, "Could not find config", err)
+		return
+	}
+
+	fmt.Printf("Setting config %s = %s\n", configUpdate.Key, configUpdate.Value)
+	switch configUpdate.Key {
+	case "weeklyQuota":
+		fmt.Printf("weeklyQuota\n")
+		intVar, err := strconv.Atoi(configUpdate.Value)
+		if err == nil {
+			err = a.settingService.SetWeeklyQuota(intVar)
+		}
+	case "fakeServerName":
+		fmt.Printf("fakeServerName\n")
+		err = a.settingService.SetFakeServerName(configUpdate.Value)
+	default:
+		fmt.Printf("Undefined key\n")
+		err = gorm.ErrRecordNotFound
+	}
+
+	if err != nil {
+		jsonMsg(c, "Can not set the config", err)
+		return
+	}
+
 	jsonMsg(c, "success", nil)
 }
