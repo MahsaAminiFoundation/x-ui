@@ -8,6 +8,7 @@ from config_dictionary import config_dictionary
 import json
 
 URL_SCHEMA = "https"
+JUST_RESTART = true
 CONFIG_CDN_TEMPLATE = """
 {
   "api": {
@@ -188,7 +189,7 @@ def add_user_from_server(hostname, remark):
         'port': '129'
     }
     add_user_resp = requests.post("{}://{}/xui/api/add_user".format(URL_SCHEMA, hostname), data=add_user_data)
-    if update_resp.status_code != 200:
+    if add_user_resp.status_code != 200:
         print("failed add user to {}".format(hostname))
         exit(0)
     print(add_user_resp.text)
@@ -205,24 +206,27 @@ if len(hosts) == 0:
 for subdomain in hosts:
     print("{} -> {}".format(subdomain, foreign_server_subdomain))
     hostname = "{}.mahsaaminivpn.com:8443".format(subdomain)
-    
-    config_str = CONFIG_CDN_TEMPLATE
-    d = {'XrayTemplateConfig': config_str}
-    url = "{}://{}/xui/api/update_xray_template".format(URL_SCHEMA, hostname)
-    print(url)
-    update_resp = requests.post(url, data=d)
-    if update_resp.status_code != 200:
-        print("failed to update the xrayTemplateConfig for {}: {}".format(hostname, update_resp.text))
-        exit(0)
-    else:
-        resp_json = json.loads(update_resp.text)
-        if resp_json["success"] != True:
-            print("failed to update the xrayTemplateConfig for {}: {}".format(hostname, update_resp.text))
-            print(config_str)
+
+    if not JUST_RESTART:
+        config_str = CONFIG_CDN_TEMPLATE
+        d = {'XrayTemplateConfig': config_str}
+        url = "{}://{}/xui/api/update_xray_template".format(URL_SCHEMA, hostname)
+        print(url)
+        update_resp = requests.post(url, data=d)
+        if update_resp.status_code != 200:
+            print("failed to update the xrayTemplateConfig for {}: {}".format(
+                hostname, update_resp.text))
             exit(0)
-        
-        print(update_resp.text)
-        print("json template is updated on {}".format(hostname))
+        else:
+            resp_json = json.loads(update_resp.text)
+            if resp_json["success"] != True:
+                print("failed to update the xrayTemplateConfig for {}: {}".format(
+                    hostname, update_resp.text))
+                print(config_str)
+                exit(0)
+
+            print(update_resp.text)
+            print("json template is updated on {}".format(hostname))
 
     add_user_from_server(hostname, "t2")
     delete_user_from_server(hostname, "t2")
