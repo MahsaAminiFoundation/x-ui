@@ -797,9 +797,17 @@ func (a *APIController) updateNginxConfig(serverName string, restartServer bool)
 		return err
 	}
 
+	locationMap := make(map[string]int)
+
 	for _, inbound := range inbounds {
 		prefix := a.getPrefixForProtocol(string(inbound.Protocol))
 		inbound_path := fmt.Sprintf("/%s%s", prefix, inbound.Remark)
+		if locationMap[inbound_path] == 1 {
+			//The location is already added, continue
+			continue
+		}
+
+		locationMap[inbound_path] = 1
 
 		sb.WriteString(fmt.Sprintf(`
         location %s {
