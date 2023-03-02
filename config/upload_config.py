@@ -32,4 +32,5 @@ def upload_file(file_name, bucket, object_name=None):
     
     
 # The config will be uploaded to: https://nofiltervpn.s3.eu-central-1.amazonaws.com/mahsa_amini.vpn.config    
-upload_file("mahsa_amini.vpn.config", "nofiltervpn") 
+# https://nofiltervpn.s3.amazonaws.com/mahsa_amini.vpn.config    
+upload_file("mahsa_amini.vpn.config", "nofiltervpn")
