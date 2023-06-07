@@ -90,6 +90,13 @@
                                     desc="This is going to be used by add_user and cronjob to manager user weekly quota" 
                                     v-model.number="allSetting.weeklyQuota"></setting-list-item>
                                     
+
+                                <setting-list-item 
+                                    type="text" 
+                                    title="Direct Server Name" 
+                                    desc="Domain name for direct codes, if empty serverName will be used" 
+                                    v-model="allSetting.directServerName"></setting-list-item>
+                                    
                             </a-list>
                         </a-tab-pane>
                         <a-tab-pane key="2" tab="用户设置">

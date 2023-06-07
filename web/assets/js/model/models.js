@@ -181,6 +181,7 @@ class AllSetting {
         this.serverIP = "";
         this.fakeServerName = "";
         this.weeklyQuota = "";
+        this.directServerName = "";
  
         this.timeLocation = "Asia/Shanghai";
 

@@ -460,7 +460,14 @@ func (a *APIController) getHostname(c *gin.Context, protocol string) string {
 	if protocol == "vmess" {
 		hostname, err = a.settingService.GetServerIP()
 	} else {
-		// vless, trojan, vmess_cdn, vless_cdn
+		if protocol == "vless" || protocol == "trojan" {
+			directHostname, err := a.settingService.GetServerName()
+			if err != nil && directHostname != "" {
+				return hostname
+			}
+		}
+
+		// vmess_cdn, vless_cdn (or vless/trojan when direct is not defined)
 		hostname, err = a.settingService.GetServerName()
 	}
 
