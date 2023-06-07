@@ -325,7 +325,6 @@ func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fake
 	} else if err != nil {
 		return "", "Could not add user", err
 	} else {
-		logger.Infof("inbound saved: %d", inbound.Id)
 		a.xrayService.SetToNeedRestart()
 
 		if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
@@ -461,9 +460,9 @@ func (a *APIController) getHostname(c *gin.Context, protocol string) string {
 		hostname, err = a.settingService.GetServerIP()
 	} else {
 		if protocol == "vless" || protocol == "trojan" {
-			directHostname, err := a.settingService.GetServerName()
-			if err != nil && directHostname != "" {
-				return hostname
+			directHostname, err := a.settingService.GetDirectServerName()
+			if err == nil && directHostname != "" {
+				return directHostname
 			}
 		}
 
