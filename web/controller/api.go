@@ -747,7 +747,7 @@ func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring strin
 			Version: "2",
 			Ps:      inbound.Remark,
 			Address: hostname,
-			Port:    80,
+			Port:    inbound.Port,
 			UUID:    string(userUUIDstring),
 			AlterId: 0,
 			Net:     "ws",
