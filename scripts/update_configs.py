@@ -8,7 +8,7 @@ from config_dictionary import config_dictionary
 import json
 
 URL_SCHEMA = "https"
-JUST_RESTART = true
+JUST_RESTART = True
 CONFIG_CDN_TEMPLATE = """
 {
   "api": {
@@ -185,7 +185,7 @@ def add_user_from_server(hostname, remark):
     add_user_data = {
         'total': '1',
         'remark': remark,
-        'protocol': 'vmess',
+        'protocol': 'vmess_cdn',
         'port': '129'
     }
     add_user_resp = requests.post("{}://{}/xui/api/add_user".format(URL_SCHEMA, hostname), data=add_user_data)
