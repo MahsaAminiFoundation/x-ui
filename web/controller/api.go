@@ -232,6 +232,18 @@ func (a *APIController) addUser(c *gin.Context) {
 	c.JSON(http.StatusOK, m)
 }
 
+func (a *APIController) isCDNServer() bool {
+	port, err := a.settingService.GetPort()
+	if err != nil {
+		return false
+	}
+	if port == 8443 {
+		return true
+	} else {
+		return false
+	}
+}
+
 // returns url_string, error_string, error_object
 func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fakeServerName string) (string, string, error) {
 	user, err := a.userService.GetFirstUser()
@@ -261,7 +273,11 @@ func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fake
 	}
 
 	if requestedProtocol == "vmess" {
-		userUUIDstring = a.setVmessSettingsForInbound(inbound)
+		if a.isCDNServer() {
+			userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
+		} else {
+			userUUIDstring = a.setVmessSettingsForInbound(inbound)
+		}
 
 	} else if requestedProtocol == "trojan" {
 		logger.Info("Setting protocol as trojan")
@@ -271,13 +287,19 @@ func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fake
 		}
 
 	} else if requestedProtocol == "vless" {
-		logger.Info("Setting protocol as vless")
-		userUUIDstring, err = a.setVlessSettingsForInbound(inbound)
-		if err != nil {
-			return "", "VlessSettingsForInbound failed", err
+		if a.isCDNServer() {
+			vlessHostname, _ := a.settingService.GetServerName()
+			userUUIDstring = a.setVlessCDNSettingsForInbound(inbound, vlessHostname)
+		} else {
+			userUUIDstring, err = a.setVlessSettingsForInbound(inbound)
+			if err != nil {
+				return "", "VlessSettingsForInbound failed", err
+			}
 		}
+
 	} else if requestedProtocol == "vmess_cdn" {
-		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, hostname)
+		vmessHostname, _ := a.settingService.GetServerName()
+		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, vmessHostname)
 		inbound.Protocol = "vmess"
 
 	} else if requestedProtocol == "vless_cdn" {
@@ -340,7 +362,6 @@ func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fake
 		if err != nil {
 			return "", "getVmessURL failed", err
 		}
-
 	} else if requestedProtocol == "trojan" {
 		url = a.getTrojanURL(inbound, trojanPassword, hostname)
 
@@ -720,18 +741,35 @@ func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound, se
 }
 
 func (a *APIController) getVmessURL(inbound *model.Inbound, userUUIDstring string, hostname string) (string, error) {
-	obj := VlessObject{
-		Version: "2",
-		Ps:      inbound.Remark,
-		Address: hostname,
-		Port:    inbound.Port,
-		UUID:    string(userUUIDstring),
-		AlterId: 0,
-		Net:     "tcp",
-		Type:    "http",
-		Host:    "",
-		Path:    "/",
-		TLS:     "none",
+	var obj VlessObject
+	if a.isCDNServer() {
+		obj = VlessObject{
+			Version: "2",
+			Ps:      inbound.Remark,
+			Address: hostname,
+			Port:    80,
+			UUID:    string(userUUIDstring),
+			AlterId: 0,
+			Net:     "ws",
+			Type:    "none",
+			Host:    "",
+			Path:    fmt.Sprintf("/r%s", inbound.Remark),
+			TLS:     "none",
+		}
+	} else {
+		obj = VlessObject{
+			Version: "2",
+			Ps:      inbound.Remark,
+			Address: hostname,
+			Port:    inbound.Port,
+			UUID:    string(userUUIDstring),
+			AlterId: 0,
+			Net:     "tcp",
+			Type:    "http",
+			Host:    "",
+			Path:    "/",
+			TLS:     "none",
+		}
 	}
 
 	objStr, err := json.Marshal(obj)
@@ -751,8 +789,13 @@ func (a *APIController) getTrojanURL(inbound *model.Inbound, password string, ho
 }
 
 func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
-	return fmt.Sprintf("vless://%s@%s:%d?type=tcp&security=xtls&flow=xtls-rprx-direct#%s",
-		userUUIDstring, hostname, inbound.Port, inbound.Remark)
+	if a.isCDNServer() {
+		return fmt.Sprintf("vless://%s@%s:%d?type=ws&security=none&path=%%2Fv%s#%s",
+			userUUIDstring, hostname, inbound.Port, inbound.Remark, inbound.Remark)
+	} else {
+		return fmt.Sprintf("vless://%s@%s:%d?type=tcp&security=xtls&flow=xtls-rprx-direct#%s",
+			userUUIDstring, hostname, inbound.Port, inbound.Remark)
+	}
 }
 
 func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) (string, error) {
