@@ -832,6 +832,13 @@ func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring st
 func (a *APIController) updateNginxConfig(serverName string, restartServer bool) error {
 	var sb strings.Builder
 
+	allServerName := serverName
+
+	oldServerNames, err := a.settingService.GetOldServerNames()
+	if err == nil && oldServerNames != "" {
+		allServerName = fmt.Sprintf("%s %s", oldServerNames, serverName)
+	}
+
 	sb.WriteString(fmt.Sprintf(`
     server {
     	listen 80;
@@ -839,7 +846,7 @@ func (a *APIController) updateNginxConfig(serverName string, restartServer bool)
     	# The host name to respond to
         server_name %s;
 
-    `, serverName))
+    `, allServerName))
 
 	inbounds, err := a.inboundService.GetAllInbounds()
 	if err != nil {

@@ -60,6 +60,7 @@ type AllSetting struct {
 	FakeServerName   string `json:"fakeServerName" form:"fakeServerName"`
 	WeeklyQuota      int    `json:"weeklyQuota" form:"weeklyQuota"`
 	DirectServerName string `json:"directServerName" form:"directServerName"`
+	OldServerNames   string `json:"oldServerNames" form:"oldServerNames"`
 
 	XrayTemplateConfig string `json:"xrayTemplateConfig" form:"xrayTemplateConfig"`
 

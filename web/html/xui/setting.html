@@ -97,6 +97,12 @@
                                     desc="Domain name for direct codes, if empty serverName will be used" 
                                     v-model="allSetting.directServerName"></setting-list-item>
                                     
+                                <setting-list-item 
+                                    type="text" 
+                                    title="Old Server Name" 
+                                    desc="For CDN servers, when a domain filtered, we want to keep serving old users, thus we want to use old domain names in this config, SPACE separated (e.g. 'zahedan.com bijar.com')"
+                                    v-model="allSetting.oldServerNames"></setting-list-item>
+                                    
                             </a-list>
                         </a-tab-pane>
                         <a-tab-pane key="2" tab="用户设置">

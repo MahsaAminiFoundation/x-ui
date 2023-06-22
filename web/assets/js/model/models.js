@@ -182,6 +182,7 @@ class AllSetting {
         this.fakeServerName = "";
         this.weeklyQuota = "";
         this.directServerName = "";
+        this.oldServerNames = "";
  
         this.timeLocation = "Asia/Shanghai";
 
