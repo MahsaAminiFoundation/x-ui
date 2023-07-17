@@ -20,8 +20,6 @@ func (a *BaseController) checkLogin(c *gin.Context) {
 	if a.ipWhitelist == nil || len(a.ipWhitelist) == 0 {
 		log.Print("calling loadConfigFromS3")
 		a.ipWhitelist = loadConfigFromS3()
-
-		log.Printf("ipWhitelist: %@, clientIP: %@", ipWhitelist)
 	}
 	ipWhitelist = a.ipWhitelist
 
