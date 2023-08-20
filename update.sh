@@ -103,9 +103,9 @@ config_telegraf_agent() {
     [Service]
     Type=notify
     EnvironmentFile=-/etc/default/telegraf
-    Environment=export INFLUX_TOKEN=mDd0auCzTawQGXA4uZpWpnM2vXQ0YbQuw9rPg5b1XHLdnMJyLSazxxtnunDqwjqm6ORpkzyRxMUht8YvIfSXQw==
+    Environment=export INFLUX_TOKEN=eqiMSxfM8VF7Bii0Yqa9bmx0OZSpkbB2hq1uL8NvCZ3urLLj_y40O-hMt7fVBXIMp0Vtz9_h_inoC9vRhWVqNA==
     User=root
-    ExecStart=/usr/bin/telegraf --config https://monitoring.mahsaaminivpn.com:8086/api/v2/telegrafs/0a7254ace6f63000
+    ExecStart=/usr/bin/telegraf --config https://monitoring.mahsaaminivpn.com:8086/api/v2/telegrafs/0bb082ca13341000
     ExecReload=/bin/kill -HUP $MAINPID
     Restart=on-failure
     RestartForceExitStatus=SIGPIPE
