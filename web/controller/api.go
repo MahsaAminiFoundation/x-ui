@@ -936,8 +936,40 @@ func (a *APIController) updateConfig(c *gin.Context) {
 			err = a.settingService.SetWeeklyQuota(intVar)
 		}
 	case "fakeServerName":
-		fmt.Printf("fakeServerName\n")
 		err = a.settingService.SetFakeServerName(configUpdate.Value)
+	case "serverName":
+		currHostname, err := a.settingService.GetServerName()
+		if err != nil {
+			jsonMsg(c, "hostname could not be found", err)
+			return
+		}
+		if currHostname == configUpdate.Value {
+			jsonMsg(c, "hostname is already at the requested value", err)
+			return
+		}
+
+		oldServerNames, err := a.settingService.GetOldServerNames()
+		newOldServerNames := currHostname
+		if err == nil && oldServerNames != "" {
+			newOldServerNames = fmt.Sprintf("%s,%s", oldServerNames, currHostname)
+		}
+		err = a.settingService.SetOldServerNames(newOldServerNames)
+		if err != nil {
+			jsonMsg(c, "hostname could not be found", err)
+			return
+		}
+
+		err = a.settingService.SetServerName(configUpdate.Value)
+		if err != nil {
+			jsonMsg(c, "Can not set the config", err)
+			return
+		}
+
+		err = a.updateNginxConfig(configUpdate.Value, true)
+		if err != nil {
+			jsonMsg(c, "deleteFromNginx", err)
+			return
+		}
 	default:
 		fmt.Printf("Undefined key\n")
 		err = gorm.ErrRecordNotFound
