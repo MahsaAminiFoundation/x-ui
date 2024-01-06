@@ -951,7 +951,7 @@ func (a *APIController) updateConfig(c *gin.Context) {
 		oldServerNames, err := a.settingService.GetOldServerNames()
 		newOldServerNames := currHostname
 		if err == nil && oldServerNames != "" {
-			newOldServerNames = fmt.Sprintf("%s,%s", oldServerNames, currHostname)
+			newOldServerNames = fmt.Sprintf("%s %s", oldServerNames, currHostname)
 		}
 		err = a.settingService.SetOldServerNames(newOldServerNames)
 		if err != nil {
