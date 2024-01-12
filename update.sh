@@ -126,6 +126,7 @@ EOF
 
 config_nginx_fallback() {
     if test -d /var/www/html; then
+        cd /var/www/html
         git clone https://github.com/gd4Ark/2048.git 2048
     fi
 }
