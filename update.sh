@@ -124,6 +124,13 @@ EOF
 
 }
 
+config_nginx_fallback() {
+    if test -d /var/www/html; then
+        git clone https://github.com/gd4Ark/2048.git 2048
+    fi
+}
+
+
 update_x-ui() {
     cd /usr/local/
 
@@ -150,6 +157,7 @@ update_x-ui() {
     /usr/bin/x-ui restart
     config_cronjob_files
     config_telegraf_agent
+    config_nginx_fallback
 }
 
 echo -e "${green}Start the update${plain}"
