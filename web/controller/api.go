@@ -829,6 +829,9 @@ func (a *APIController) updateNginxConfig(serverName string, restartServer bool)
 
     	# The host name to respond to
         server_name %s;
+        
+    	index index.html;
+        root /var/www/html/2048;
 
     `, allServerName))
 
