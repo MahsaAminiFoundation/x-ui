@@ -122,6 +122,7 @@ type VlessObject struct {
 	Type    string `json:"type"`
 	Host    string `json:"host"`
 	Path    string `json:"path"`
+	Sni     string `json:"sni,omitempty"`
 	TLS     string `json:"tls"`
 }
 
@@ -787,14 +788,15 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 		Version: "2",
 		Ps:      inbound.Remark,
 		Address: fakeServerName,
-		Port:    80,
+		Port:    443,
 		UUID:    string(userUUIDstring),
 		AlterId: 0,
 		Net:     "ws",
 		Type:    "none",
 		Host:    hostname,
+		Sni:     hostname,
 		Path:    fmt.Sprintf("/r%s", inbound.Remark),
-		TLS:     "none",
+		TLS:     "tls",
 	}
 
 	objStr, err := json.Marshal(obj)
@@ -809,8 +811,8 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 }
 
 func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) string {
-	return fmt.Sprintf("vless://%s@%s:80?type=ws&security=none&path=%%2Fv%s&host=%s#%s",
-		userUUIDstring, fakeServerName, inbound.Remark, hostname, inbound.Remark)
+	return fmt.Sprintf("vless://%s@%s:443?type=ws&encryption=none&security=tls&path=%%2Fv%s&sni=%s&host=%s#%s",
+		userUUIDstring, fakeServerName, inbound.Remark, hostname, hostname, inbound.Remark)
 }
 
 func (a *APIController) updateNginxConfig(serverName string, restartServer bool) error {
