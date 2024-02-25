@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 	"x-ui/database/model"
 	"x-ui/logger"
@@ -24,6 +26,156 @@ import (
 )
 
 const NGINX_CONFIG = "/etc/nginx/conf.d/mahsaaminivpn.conf"
+
+const FRAGMENT_TEMPLATE = `
+{
+  "log": {
+    "access": "",
+    "error": "",
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "tag": "socks",
+      "port": 10808,
+      "listen": "127.0.0.1",
+      "protocol": "socks",
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ],
+        "routeOnly": false
+      },
+      "settings": {
+        "auth": "noauth",
+        "udp": true,
+        "allowTransparent": false
+      }
+    },
+    {
+      "tag": "http",
+      "port": 10809,
+      "listen": "127.0.0.1",
+      "protocol": "http",
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ],
+        "routeOnly": false
+      },
+      "settings": {
+        "auth": "noauth",
+        "udp": true,
+        "allowTransparent": false
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "proxy",
+      "protocol": "vmess",
+      "settings": {
+        "vnext": [
+          {
+            "address": "{{.cdnHost}}",
+            "port": {{.cdnPort}},
+            "users": [
+              {
+                "id": "{{.uuid}}",
+                "alterId": 0,
+                "email": "t@t.tt",
+                "security": "auto"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "allowInsecure": false,
+          "serverName": "{{.mahsaHostname}}",
+          "show": false
+        },
+        "wsSettings": {
+          "path": "{{.mahsaPathname}}",
+          "headers": {
+            "Host": "{{.mahsaHostname}}"
+          }
+        },
+        "sockopt": {
+            "dialerProxy": "fragment",
+            "tcpKeepAliveIdle": 100,
+            "tcpNoDelay": true
+        }
+      },
+      "mux": {
+        "enabled": true,
+        "concurrency": 8
+      }
+    },
+    {
+        "tag": "fragment",
+        "protocol": "freedom",
+        "settings": {
+            "domainStrategy": "AsIs",
+            "fragment": {
+                "packets": "tlshello",
+                "length": "100-200",
+                "interval": "10-20"
+            }
+        },
+        "streamSettings": {
+            "sockopt": {
+                "TcpNoDelay": true
+            }
+        }
+    },
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {}
+    },
+    {
+      "tag": "block",
+      "protocol": "blackhole",
+      "settings": {
+        "response": {
+          "type": "http"
+        }
+      }
+    }
+  ],
+  "dns": {
+    "servers": [
+      "1.1.1.1",
+      "8.8.8.8"
+    ]
+  },
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": [
+          "api"
+        ],
+        "outboundTag": "api"
+      },
+      {
+        "type": "field",
+        "port": "0-65535",
+        "outboundTag": "proxy"
+      }
+    ]
+  }
+}
+`
 
 var directCodeMap = map[string]bool{
 	"vmess":     true,
@@ -215,7 +367,7 @@ func (a *APIController) addUser(c *gin.Context) {
 	hostname := a.getHostname(c, string(inbound.Protocol))
 
 	fakeServerName := ""
-	if inbound.Protocol == "vmess_cdn" || inbound.Protocol == "vless_cdn" {
+	if inbound.Protocol == "vmess_cdn" || inbound.Protocol == "vless_cdn" || inbound.Protocol == "fragment_cdn" {
 		fakeServerNames, err := a.settingService.GetFakeServerName()
 		if err != nil {
 			jsonMsg(c, "Could not find config for fakeServerName", err)
@@ -311,6 +463,11 @@ func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fake
 	} else if requestedProtocol == "vless_cdn" {
 		userUUIDstring = a.setVlessCDNSettingsForInbound(inbound, hostname)
 		inbound.Protocol = "vless"
+
+	} else if requestedProtocol == "fragment_cdn" {
+		vmessHostname, _ := a.settingService.GetServerName()
+		userUUIDstring = a.setVmessCDNSettingsForInbound(inbound, vmessHostname)
+		inbound.Protocol = "vmess"
 	}
 
 	var url string
@@ -355,7 +512,7 @@ func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fake
 	} else {
 		a.xrayService.SetToNeedRestart()
 
-		if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" {
+		if requestedProtocol == "vmess_cdn" || requestedProtocol == "vless_cdn" || requestedProtocol == "fragment_cdn" {
 			err = a.updateNginxConfig(hostname, true)
 			if err != nil {
 				return "", "updateNginxConfig failed", err
@@ -382,6 +539,12 @@ func (a *APIController) addInbound(inbound *model.Inbound, hostname string, fake
 
 	} else if requestedProtocol == "vless_cdn" {
 		url = a.getVlessCDNURL(inbound, userUUIDstring, hostname, fakeServerName)
+
+	} else if requestedProtocol == "fragment_cdn" {
+		url, err = a.getFragmentJsonForVmessCDN(inbound, userUUIDstring, hostname, fakeServerName)
+		if err != nil {
+			return "", "getFragmentJsonForVmessCDN failed", err
+		}
 
 	}
 
@@ -808,6 +971,35 @@ func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring st
 	vmessURL := "vmess://" + objStrBase64
 
 	return vmessURL, nil
+}
+
+func templateReplace(fmt string, args map[string]interface{}) (str string) {
+	var msg bytes.Buffer
+
+	tmpl, err := template.New("errmsg").Parse(fmt)
+
+	if err != nil {
+		return fmt
+	}
+
+	tmpl.Execute(&msg, args)
+	return msg.String()
+}
+
+func (a *APIController) getFragmentJsonForVmessCDN(inbound *model.Inbound,
+	userUUIDstring string,
+	hostname string,
+	fakeServerName string) (string, error) {
+
+	jsonConfig := templateReplace(FRAGMENT_TEMPLATE, map[string]interface{}{
+		"cdnHost":       fakeServerName,
+		"cdnPort":       "443",
+		"uuid":          string(userUUIDstring),
+		"mahsaHostname": hostname,
+		"mahsaPathname": fmt.Sprintf("/r%s", inbound.Remark),
+	})
+
+	return jsonConfig, nil
 }
 
 func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) string {
