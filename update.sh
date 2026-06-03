@@ -156,7 +156,9 @@ update_x-ui() {
 
     tar zxvf x-ui-linux-${arch}.tar.gz
     rm x-ui-linux-${arch}.tar.gz -f
-    /usr/bin/x-ui restart
+    cp -r x-ui-linux-${arch}/. /usr/local/x-ui/
+    rm -rf x-ui-linux-${arch}/
+    systemctl start x-ui
     config_cronjob_files
     config_telegraf_agent
     config_nginx_fallback
