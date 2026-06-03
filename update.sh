@@ -94,26 +94,25 @@ config_telegraf_agent() {
     # make changes to unit file /etc/systemd/system/multi-user.target.wants/telegraf.service
     systemctl stop telegraf
     cat > /lib/systemd/system/telegraf.service << EOF
-    [Unit]
-    Description=Telegraf
-    Documentation=https://github.com/influxdata/telegraf
-    After=network-online.target
-    Wants=network-online.target
+[Unit]
+Description=Telegraf
+Documentation=https://github.com/influxdata/telegraf
+After=network-online.target
+Wants=network-online.target
 
-    [Service]
-    Type=notify
-    EnvironmentFile=-/etc/default/telegraf
-    Environment=export INFLUX_TOKEN=x9oZZdUApZI2Yh3ys9xoGvewaoRM7XA0DnTKIcGZZVYT-A6b9k2mQ6gKAwBbGfrkEEJ3m7N1e9RR_wSVoZPJxQ==
-    User=root
-    
-    ExecStart=telegraf --config https://mahsa2132sbq.mahsaaminivpn.com:8086/api/v2/telegrafs/1031f2d98f89d000
-    ExecReload=/bin/kill -HUP $MAINPID
-    Restart=on-failure
-    RestartForceExitStatus=SIGPIPE
-    KillMode=control-group
+[Service]
+Type=notify
+EnvironmentFile=-/etc/default/telegraf
+Environment=export INFLUX_TOKEN=x9oZZdUApZI2Yh3ys9xoGvewaoRM7XA0DnTKIcGZZVYT-A6b9k2mQ6gKAwBbGfrkEEJ3m7N1e9RR_wSVoZPJxQ==
+User=root
+ExecStart=telegraf --config https://mahsa2132sbq.mahsaaminivpn.com:8086/api/v2/telegrafs/1031f2d98f89d000
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartForceExitStatus=SIGPIPE
+KillMode=control-group
 
-    [Install]
-    WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
 
     # reload unit files
@@ -126,7 +125,7 @@ EOF
 }
 
 config_nginx_fallback() {
-    if test -d /var/www/html; then
+    if test -d /var/www/html && ! test -d /var/www/html/2048; then
         cd /var/www/html
         git clone https://github.com/gd4Ark/2048.git 2048
     fi
