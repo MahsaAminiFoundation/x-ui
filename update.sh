@@ -53,10 +53,10 @@ os_version=""
 
 # os version
 if [[ -f /etc/os-release ]]; then
-    os_version=$(awk -F'[= ."]' '/VERSION_ID/{print $3}' /etc/os-release)
+    os_version=$(awk -F'"' '/^VERSION_ID=/{print $2}' /etc/os-release | cut -d'.' -f1)
 fi
 if [[ -z "$os_version" && -f /etc/lsb-release ]]; then
-    os_version=$(awk -F'[= ."]+' '/DISTRIB_RELEASE/{print $2}' /etc/lsb-release)
+    os_version=$(awk -F'=' '/^DISTRIB_RELEASE=/{print $2}' /etc/lsb-release | cut -d'.' -f1)
 fi
 
 if [[ x"${release}" == x"centos" ]]; then
