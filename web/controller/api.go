@@ -13,6 +13,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -763,8 +764,7 @@ func (a *APIController) setTrojanSettingsForInbound(inbound *model.Inbound) (str
 	inbound.Settings = fmt.Sprintf(`{
                           "clients": [
                             {
-                              "password": "%s",
-                              "flow": "xtls-rprx-direct"
+                              "password": "%s"
                             }
                           ],
                           "fallbacks": []
@@ -782,8 +782,8 @@ func (a *APIController) setTrojanSettingsForInbound(inbound *model.Inbound) (str
 
 	inbound.StreamSettings = fmt.Sprintf(`{
       "network": "tcp",
-      "security": "xtls",
-      "xtlsSettings": {
+      "security": "tls",
+      "tlsSettings": {
         "serverName": "",
         "certificates": [
           {
@@ -817,14 +817,15 @@ func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) (stri
 	inbound.Settings = fmt.Sprintf(
 		`{
             "clients": [
-            {
-              "id": "%s",
-              "flow": "xtls-rprx-direct"
-            }
-          ],
-          "decryption": "none",
-          "fallbacks": []
-        }`,
+              {
+                "id": "%s",
+                "email": "xhttp",
+                "flow": ""
+              }
+            ],
+            "decryption": "none",
+            "fallbacks": []
+          }`,
 		userUUID)
 	userUUIDstring := userUUID.String()
 
@@ -839,33 +840,33 @@ func (a *APIController) setVlessSettingsForInbound(inbound *model.Inbound) (stri
 	}
 
 	inbound.StreamSettings = fmt.Sprintf(`{
-      "network": "tcp",
-      "security": "xtls",
-      "xtlsSettings": {
-        "serverName": "",
-        "certificates": [
-          {
+        "network": "xhttp",
+        "security": "tls",
+        "tlsSettings": {
+          "certificates": [
+            {
               "certificateFile": "%s",
               "keyFile": "%s"
-          }
-        ],
-        "alpn": []
-      },
-      "tcpSettings": {
-        "acceptProxyProtocol": false,
-        "header": {
-          "type": "none"
+            }
+          ],
+          "alpn": ["h2", "http/1.1"]
+        },
+        "xhttpSettings": {
+          "path": "/download.php",
+          "mode": "auto",
+          "headers": {},
+          "acceptProxyProtocol": false
         }
-      }
-    }`, certificateFile, keyFile)
+      }`, certificateFile, keyFile)
 
 	inbound.Sniffing = `{
-        "enabled":true,
-        "destOverride":[
-            "http",
-            "tls"
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
         ]
-    }`
+      }`
 
 	return userUUIDstring, nil
 }
@@ -875,36 +876,37 @@ func (a *APIController) setVlessCDNSettingsForInbound(inbound *model.Inbound, se
 	inbound.Settings = fmt.Sprintf(
 		`{
             "clients": [
-            {
-              "id": "%s",
-              "flow": "xtls-rprx-direct"
-            }
-          ],
-          "decryption": "none",
-          "fallbacks": []
-        }`,
+              {
+                "id": "%s",
+                "email": "xhttp",
+                "flow": ""
+              }
+            ],
+            "decryption": "none",
+            "fallbacks": []
+          }`,
 		userUUID)
 	userUUIDstring := userUUID.String()
 
 	inbound.StreamSettings = fmt.Sprintf(`{
-      "network": "ws",
-      "security": "none",
-      "wsSettings": {
-        "acceptProxyProtocol": false,
-        "path": "/v%s",
-        "headers": {
-              "Host": "%s"
+        "network": "xhttp",
+        "security": "none",
+        "xhttpSettings": {
+          "path": "/v%s",
+          "mode": "auto",
+          "headers": {},
+          "acceptProxyProtocol": false
         }
-      }
-    }`, inbound.Remark, serverName)
+      }`, inbound.Remark)
 
 	inbound.Sniffing = `{
-        "enabled":true,
-        "destOverride":[
-            "http",
-            "tls"
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
         ]
-    }`
+      }`
 
 	return userUUIDstring
 }
@@ -942,8 +944,30 @@ func (a *APIController) getTrojanURL(inbound *model.Inbound, password string, ho
 }
 
 func (a *APIController) getVlessURL(inbound *model.Inbound, userUUIDstring string, hostname string) string {
-	return fmt.Sprintf("vless://%s@%s:%d?type=tcp&security=xtls&flow=xtls-rprx-direct#%s",
-		userUUIDstring, hostname, inbound.Port, inbound.Remark)
+	// hostname = GetDirectServerName() = domain matching the TLS cert → use as SNI/host
+	// connAddr = raw server IP → what the client actually connects to
+	connAddr := hostname
+	if ip, err := a.settingService.GetServerIP(); err == nil && ip != "" {
+		connAddr = ip
+	}
+
+	extra := `{"xPaddingBytes":"100-1000","mode":"auto","scMaxEachPostBytes":"1000000"}`
+	params := url.Values{}
+	params.Set("encryption", "none")
+	params.Set("security", "tls")
+	params.Set("sni", hostname)
+	params.Set("fp", "chrome")
+	params.Set("alpn", "h2,http/1.1")
+	params.Set("insecure", "0")
+	params.Set("allowInsecure", "0")
+	params.Set("type", "xhttp")
+	params.Set("host", hostname)
+	params.Set("path", "/download.php")
+	params.Set("mode", "auto")
+	params.Set("extra", extra)
+
+	return fmt.Sprintf("vless://%s@%s:%d?%s#%s",
+		userUUIDstring, connAddr, inbound.Port, params.Encode(), url.QueryEscape(inbound.Remark))
 }
 
 func (a *APIController) getVmessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) (string, error) {
@@ -1003,8 +1027,19 @@ func (a *APIController) getFragmentJsonForVmessCDN(inbound *model.Inbound,
 }
 
 func (a *APIController) getVlessCDNURL(inbound *model.Inbound, userUUIDstring string, hostname string, fakeServerName string) string {
-	return fmt.Sprintf("vless://%s@%s:443?type=ws&encryption=none&security=tls&path=%%2Fv%s&sni=%s&host=%s#%s",
-		userUUIDstring, fakeServerName, inbound.Remark, hostname, hostname, inbound.Remark)
+	params := url.Values{}
+	params.Set("encryption", "none")
+	params.Set("security", "tls")
+	params.Set("sni", hostname)
+	params.Set("fp", "chrome")
+	params.Set("alpn", "h2,http/1.1")
+	params.Set("type", "xhttp")
+	params.Set("host", hostname)
+	params.Set("path", "/v"+inbound.Remark)
+	params.Set("mode", "auto")
+
+	return fmt.Sprintf("vless://%s@%s:443?%s#%s",
+		userUUIDstring, fakeServerName, params.Encode(), url.QueryEscape(inbound.Remark))
 }
 
 func (a *APIController) updateNginxConfig(serverName string, restartServer bool) error {
